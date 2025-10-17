@@ -3,6 +3,681 @@
  * 商材起点企業発掘・提案自動生成システム
  */
 
+// ===========================================
+// API設定と定数
+// ===========================================
+
+/**
+ * OpenAI API設定
+ */
+const OPENAI_CONFIG = {
+  baseURL: 'https://api.openai.com/v1',
+  model: 'gpt-3.5-turbo',
+  maxTokens: 2000,
+  temperature: 0.7
+};
+
+/**
+ * Google Custom Search API設定
+ */
+const GOOGLE_SEARCH_CONFIG = {
+  baseURL: 'https://www.googleapis.com/customsearch/v1',
+  defaultParams: {
+    lr: 'lang_ja',
+    cr: 'countryJP',
+    safe: 'off',
+    num: 10
+  }
+};
+
+// ===========================================
+// APIレート制限システム
+// ===========================================
+
+/**
+ * OpenAI APIレート制限管理クラス
+ */
+class OpenAIRateLimiter {
+  constructor() {
+    this.lastRequestTime = 0;
+    this.requestCount = 0;
+    this.tokensUsed = 0;
+    this.minutelyLimit = 3; // GPT-3.5-turbo: 3 requests/minute (無料プラン)
+    this.dailyTokenLimit = 40000; // 1日のトークン制限
+  }
+  
+  async waitIfNeeded() {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    
+    // 20秒間隔を維持（3リクエスト/分制限対応）
+    if (timeSinceLastRequest < 20000) {
+      Logger.log(`OpenAI API制限: ${20000 - timeSinceLastRequest}ms待機中...`);
+      await this.sleep(20000 - timeSinceLastRequest);
+    }
+    
+    // 分間制限チェック
+    if (this.requestCount >= this.minutelyLimit) {
+      Logger.log('OpenAI API分間制限に達しました。60秒待機します...');
+      await this.sleep(60000);
+      this.requestCount = 0;
+    }
+    
+    this.lastRequestTime = Date.now();
+    this.requestCount++;
+  }
+  
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  updateTokenUsage(tokens) {
+    this.tokensUsed += tokens;
+    if (this.tokensUsed > this.dailyTokenLimit) {
+      throw new Error('OpenAI API日次トークン制限に達しました');
+    }
+  }
+}
+
+/**
+ * Google Search APIレート制限管理クラス
+ */
+class GoogleSearchRateLimiter {
+  constructor() {
+    this.lastRequestTime = 0;
+    this.requestCount = 0;
+    this.dailyLimit = 100; // Custom Search API: 100 queries/day (無料プラン)
+  }
+  
+  async waitIfNeeded() {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    
+    // 1.5秒間隔を維持（安全マージン）
+    if (timeSinceLastRequest < 1500) {
+      Logger.log(`Google Search API制限: ${1500 - timeSinceLastRequest}ms待機中...`);
+      await this.sleep(1500 - timeSinceLastRequest);
+    }
+    
+    // 日次制限チェック
+    if (this.requestCount >= this.dailyLimit) {
+      throw new Error('Google Search API日次制限に達しました');
+    }
+    
+    this.lastRequestTime = Date.now();
+    this.requestCount++;
+  }
+  
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+/**
+ * 統合レート制限マネージャー
+ */
+class APIRateLimitManager {
+  constructor() {
+    this.openAILimiter = new OpenAIRateLimiter();
+    this.googleSearchLimiter = new GoogleSearchRateLimiter();
+  }
+  
+  async waitForOpenAI() {
+    await this.openAILimiter.waitIfNeeded();
+  }
+  
+  async waitForGoogleSearch() {
+    await this.googleSearchLimiter.waitIfNeeded();
+  }
+  
+  updateOpenAITokens(tokens) {
+    this.openAILimiter.updateTokenUsage(tokens);
+  }
+}
+
+// グローバルレート制限マネージャーインスタンス
+const rateLimitManager = new APIRateLimitManager();
+
+// ===========================================
+// API認証・ヘッダー取得
+// ===========================================
+
+/**
+ * OpenAI APIヘッダー取得
+ */
+function getOpenAIHeaders() {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+  if (!apiKey) {
+    throw new Error('OpenAI API Keyが設定されていません。PropertiesServiceで OPENAI_API_KEY を設定してください。');
+  }
+  return {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  };
+}
+
+/**
+ * Google Custom Search APIパラメータ取得
+ */
+function getGoogleSearchParams() {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('GOOGLE_SEARCH_API_KEY');
+  const engineId = PropertiesService.getScriptProperties().getProperty('GOOGLE_SEARCH_ENGINE_ID');
+  
+  if (!apiKey || !engineId) {
+    throw new Error('Google Search API設定が不完全です。GOOGLE_SEARCH_API_KEY と GOOGLE_SEARCH_ENGINE_ID を設定してください。');
+  }
+  
+  return { apiKey, engineId };
+}
+
+// ===========================================
+// エラーハンドリング
+// ===========================================
+
+/**
+ * 指数バックオフ付きAPI呼び出し
+ */
+function apiCallWithRetry(apiCall, maxRetries = 3, baseDelay = 1000) {
+  let attempt = 0;
+  
+  function makeRequest() {
+    try {
+      return apiCall();
+    } catch (error) {
+      attempt++;
+      if (attempt >= maxRetries) {
+        throw error;
+      }
+      
+      const delay = baseDelay * Math.pow(2, attempt - 1);
+      Logger.log(`API呼び出し失敗 (試行${attempt}/${maxRetries}): ${delay}ms後にリトライします`);
+      Utilities.sleep(delay);
+      return makeRequest();
+    }
+  }
+  
+  return makeRequest();
+}
+
+/**
+ * OpenAI APIエラーハンドリング
+ */
+function handleOpenAIError(error, context) {
+  const errorMap = {
+    401: 'API キーが無効です',
+    429: 'API使用量制限に達しました',
+    500: 'OpenAIサーバーエラーです',
+    503: 'OpenAIサービスが一時的に利用できません'
+  };
+  
+  Logger.log(`OpenAI API Error in ${context}: ${error}`);
+  
+  if (error.code && errorMap[error.code]) {
+    throw new Error(errorMap[error.code]);
+  }
+  
+  throw new Error('OpenAI APIでエラーが発生しました');
+}
+
+/**
+ * Google Search APIエラーハンドリング
+ */
+function handleGoogleSearchError(error, context) {
+  const errorMap = {
+    400: '検索クエリが無効です',
+    403: 'API制限に達しました、または認証エラーです',
+    500: 'Google Search APIサーバーエラーです'
+  };
+  
+  Logger.log(`Google Search API Error in ${context}: ${error}`);
+  
+  if (error.code && errorMap[error.code]) {
+    throw new Error(errorMap[error.code]);
+  }
+  
+  throw new Error('Google Search APIでエラーが発生しました');
+}
+
+// ===========================================
+// OpenAI ChatGPT API統合
+// ===========================================
+
+/**
+ * OpenAI ChatGPT APIでキーワード生成
+ */
+async function generateKeywordsWithChatGPT(productInfo) {
+  try {
+    await rateLimitManager.waitForOpenAI();
+    
+    const requestData = {
+      model: OPENAI_CONFIG.model,
+      messages: [
+        {
+          role: 'system',
+          content: `あなたは営業戦略の専門家です。商材情報から効果的な企業検索キーワードを生成してください。
+
+以下の4つのカテゴリで、各5個ずつ、合計20個のキーワードを生成してください：
+
+1. 業界キーワード - 対象業界の具体的な名称
+2. 課題キーワード - 企業が抱える問題・悩み  
+3. 技術キーワード - 関連技術・システム・ツール
+4. 成果キーワード - 期待される結果・効果
+
+JSON形式で以下の構造で回答してください：
+{
+  "industryKeywords": ["キーワード1", "キーワード2", ...],
+  "challengeKeywords": ["キーワード1", "キーワード2", ...],
+  "technologyKeywords": ["キーワード1", "キーワード2", ...],
+  "resultKeywords": ["キーワード1", "キーワード2", ...]
+}`
+        },
+        {
+          role: 'user',
+          content: `商材名: ${productInfo.name}
+商材概要: ${productInfo.description}
+対象企業規模: ${productInfo.targetCompanySize || '中小企業〜大企業'}
+価格帯: ${productInfo.priceRange || '要相談'}
+主な機能: ${productInfo.features || ''}`
+        }
+      ],
+      max_tokens: OPENAI_CONFIG.maxTokens,
+      temperature: OPENAI_CONFIG.temperature
+    };
+
+    const response = apiCallWithRetry(() => {
+      const apiResponse = UrlFetchApp.fetch(`${OPENAI_CONFIG.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: getOpenAIHeaders(),
+        payload: JSON.stringify(requestData)
+      });
+      
+      if (apiResponse.getResponseCode() !== 200) {
+        throw new Error(`OpenAI API Error: ${apiResponse.getResponseCode()}`);
+      }
+      
+      return JSON.parse(apiResponse.getContentText());
+    });
+
+    // トークン使用量更新
+    if (response.usage && response.usage.total_tokens) {
+      rateLimitManager.updateOpenAITokens(response.usage.total_tokens);
+    }
+
+    // レスポンス解析
+    const content = response.choices[0].message.content;
+    return JSON.parse(content);
+    
+  } catch (error) {
+    handleOpenAIError(error, 'generateKeywordsWithChatGPT');
+  }
+}
+
+/**
+ * OpenAI ChatGPT APIで提案メッセージ生成
+ */
+async function generateProposalWithChatGPT(companyInfo, productInfo) {
+  try {
+    await rateLimitManager.waitForOpenAI();
+    
+    const requestData = {
+      model: OPENAI_CONFIG.model,
+      messages: [
+        {
+          role: 'system',
+          content: `あなたは経験豊富な営業担当者です。企業情報と商材情報から、パーソナライズされた営業提案メッセージを作成してください。
+
+要件：
+- 企業の業界・規模に特化した内容
+- 具体的な導入効果を示す
+- 次のアクションを明確にする
+- 日本のビジネスマナーに配慮
+- 300-500文字程度
+
+JSON形式で以下の構造で回答してください：
+{
+  "subject": "メール件名",
+  "proposal": "提案メッセージ本文",
+  "nextAction": "提案する次のステップ",
+  "expectedBenefit": "期待される導入効果"
+}`
+        },
+        {
+          role: 'user',
+          content: `【企業情報】
+企業名: ${companyInfo.companyName}
+業界: ${companyInfo.industry || '不明'}
+企業規模: ${companyInfo.companySize || '不明'}
+ウェブサイト: ${companyInfo.website}
+企業概要: ${companyInfo.description || ''}
+
+【商材情報】
+商材名: ${productInfo.name}
+商材概要: ${productInfo.description}
+対象企業規模: ${productInfo.targetCompanySize || ''}
+価格帯: ${productInfo.priceRange || ''}
+主な機能: ${productInfo.features || ''}`
+        }
+      ],
+      max_tokens: OPENAI_CONFIG.maxTokens,
+      temperature: 0.8
+    };
+
+    const response = apiCallWithRetry(() => {
+      const apiResponse = UrlFetchApp.fetch(`${OPENAI_CONFIG.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: getOpenAIHeaders(),
+        payload: JSON.stringify(requestData)
+      });
+      
+      if (apiResponse.getResponseCode() !== 200) {
+        throw new Error(`OpenAI API Error: ${apiResponse.getResponseCode()}`);
+      }
+      
+      return JSON.parse(apiResponse.getContentText());
+    });
+
+    // トークン使用量更新
+    if (response.usage && response.usage.total_tokens) {
+      rateLimitManager.updateOpenAITokens(response.usage.total_tokens);
+    }
+
+    // レスポンス解析
+    const content = response.choices[0].message.content;
+    return JSON.parse(content);
+    
+  } catch (error) {
+    handleOpenAIError(error, 'generateProposalWithChatGPT');
+  }
+}
+
+// ===========================================
+// Google Custom Search API統合
+// ===========================================
+
+/**
+ * Google Custom Search APIで企業検索
+ */
+async function searchCompaniesWithGoogle(keyword, startIndex = 1) {
+  try {
+    await rateLimitManager.waitForGoogleSearch();
+    
+    const { apiKey, engineId } = getGoogleSearchParams();
+    const searchParams = {
+      ...GOOGLE_SEARCH_CONFIG.defaultParams,
+      key: apiKey,
+      cx: engineId,
+      q: keyword,
+      start: startIndex
+    };
+    
+    // URLパラメータ構築
+    const url = `${GOOGLE_SEARCH_CONFIG.baseURL}?${Object.entries(searchParams)
+      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .join('&')}`;
+    
+    const response = apiCallWithRetry(() => {
+      const apiResponse = UrlFetchApp.fetch(url, {
+        method: 'GET'
+      });
+      
+      if (apiResponse.getResponseCode() !== 200) {
+        throw new Error(`Google Search API Error: ${apiResponse.getResponseCode()}`);
+      }
+      
+      return JSON.parse(apiResponse.getContentText());
+    });
+
+    // 企業情報抽出
+    const companies = [];
+    if (response.items) {
+      for (const item of response.items) {
+        try {
+          const companyInfo = extractCompanyInfo(item);
+          if (companyInfo && isValidCompany(companyInfo)) {
+            companies.push(companyInfo);
+          }
+        } catch (error) {
+          Logger.log(`企業情報抽出エラー: ${error}`);
+        }
+      }
+    }
+    
+    return companies;
+    
+  } catch (error) {
+    handleGoogleSearchError(error, 'searchCompaniesWithGoogle');
+  }
+}
+
+/**
+ * 検索結果から企業情報を抽出
+ */
+function extractCompanyInfo(searchItem) {
+  const url = searchItem.link;
+  const domain = extractDomain(url);
+  
+  return {
+    companyId: generateCompanyId(domain),
+    companyName: extractCompanyName(searchItem.title),
+    website: url,
+    domain: domain,
+    description: cleanText(searchItem.snippet),
+    lastUpdated: new Date(),
+    searchKeyword: '', // 後で設定
+    source: 'Google Custom Search'
+  };
+}
+
+/**
+ * 有効な企業データかチェック
+ */
+function isValidCompany(companyInfo) {
+  // 無効なパターンをフィルタリング
+  const invalidPatterns = [
+    'wikipedia', 'facebook.com', 'twitter.com', 'linkedin.com',
+    'youtube.com', 'amazon.com', 'google.com', 'yahoo.com'
+  ];
+  
+  const domain = companyInfo.domain.toLowerCase();
+  return !invalidPatterns.some(pattern => domain.includes(pattern)) &&
+         companyInfo.companyName &&
+         companyInfo.companyName.length > 2;
+}
+
+/**
+ * ドメイン抽出
+ */
+function extractDomain(url) {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname.replace('www.', '');
+  } catch (error) {
+    return '';
+  }
+}
+
+/**
+ * 企業名抽出
+ */
+function extractCompanyName(title) {
+  // タイトルから企業名を抽出するロジック
+  return title.split('|')[0].split('-')[0].split('・')[0].trim();
+}
+
+/**
+ * テキストクリーニング
+ */
+function cleanText(text) {
+  return text ? text.replace(/\s+/g, ' ').trim() : '';
+}
+
+/**
+ * 企業ID生成
+ */
+function generateCompanyId(domain) {
+  return `comp_${domain.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
+}
+
+// ===========================================
+// システム健全性チェック
+// ===========================================
+
+/**
+ * システム全体の健全性チェック
+ */
+function performHealthCheck() {
+  const results = {
+    timestamp: new Date().toISOString(),
+    sheets: false,
+    openaiAPI: false,
+    googleSearchAPI: false,
+    errors: []
+  };
+  
+  try {
+    // シート存在チェック
+    results.sheets = checkSystemInitialization();
+    Logger.log('✅ シートチェック: 正常');
+  } catch (error) {
+    results.errors.push(`シートエラー: ${error.toString()}`);
+    Logger.log('❌ シートチェック: 異常');
+  }
+  
+  try {
+    // OpenAI API接続チェック
+    results.openaiAPI = checkOpenAIConnection();
+    Logger.log('✅ OpenAI APIチェック: 正常');
+  } catch (error) {
+    results.errors.push(`OpenAI APIエラー: ${error.toString()}`);
+    Logger.log('❌ OpenAI APIチェック: 異常');
+  }
+  
+  try {
+    // Google Search API接続チェック
+    results.googleSearchAPI = checkGoogleSearchConnection();
+    Logger.log('✅ Google Search APIチェック: 正常');
+  } catch (error) {
+    results.errors.push(`Google Search APIエラー: ${error.toString()}`);
+    Logger.log('❌ Google Search APIチェック: 異常');
+  }
+  
+  // 結果をログシートに記録
+  try {
+    logHealthCheckResults(results);
+  } catch (error) {
+    Logger.log('ヘルスチェック結果の記録に失敗:', error);
+  }
+  
+  return results;
+}
+
+/**
+ * OpenAI API接続チェック
+ */
+function checkOpenAIConnection() {
+  try {
+    const apiKey = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY が設定されていません');
+    }
+    
+    // 簡単なテストリクエスト
+    const testRequest = {
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'user',
+          content: 'Hello! Please respond with "OK" to confirm the connection.'
+        }
+      ],
+      max_tokens: 10
+    };
+    
+    const response = UrlFetchApp.fetch(`${OPENAI_CONFIG.baseURL}/chat/completions`, {
+      method: 'POST',
+      headers: getOpenAIHeaders(),
+      payload: JSON.stringify(testRequest)
+    });
+    
+    if (response.getResponseCode() === 200) {
+      return true;
+    } else {
+      throw new Error(`HTTP ${response.getResponseCode()}: ${response.getContentText()}`);
+    }
+    
+  } catch (error) {
+    throw new Error(`OpenAI API接続失敗: ${error.toString()}`);
+  }
+}
+
+/**
+ * Google Search API接続チェック
+ */
+function checkGoogleSearchConnection() {
+  try {
+    const { apiKey, engineId } = getGoogleSearchParams();
+    
+    // 簡単なテスト検索
+    const testUrl = `${GOOGLE_SEARCH_CONFIG.baseURL}?key=${apiKey}&cx=${engineId}&q=test&num=1`;
+    
+    const response = UrlFetchApp.fetch(testUrl, {
+      method: 'GET'
+    });
+    
+    if (response.getResponseCode() === 200) {
+      return true;
+    } else {
+      throw new Error(`HTTP ${response.getResponseCode()}: ${response.getContentText()}`);
+    }
+    
+  } catch (error) {
+    throw new Error(`Google Search API接続失敗: ${error.toString()}`);
+  }
+}
+
+/**
+ * ヘルスチェック結果をログシートに記録
+ */
+function logHealthCheckResults(results) {
+  try {
+    const sheet = getSafeSheet(SHEET_NAMES.LOGS);
+    const status = results.errors.length === 0 ? '正常' : '異常';
+    const errorSummary = results.errors.length > 0 ? results.errors.join('; ') : '';
+    
+    sheet.appendRow([
+      results.timestamp,
+      'システムヘルスチェック',
+      status,
+      `シート:${results.sheets ? '○' : '×'}, OpenAI:${results.openaiAPI ? '○' : '×'}, Google:${results.googleSearchAPI ? '○' : '×'}`,
+      errorSummary
+    ]);
+    
+  } catch (error) {
+    Logger.log('ヘルスチェック結果記録エラー:', error);
+  }
+}
+
+/**
+ * API設定状況の確認
+ */
+function checkAPIConfiguration() {
+  const config = {
+    openaiKey: false,
+    googleSearchKey: false,
+    googleSearchEngineId: false
+  };
+  
+  try {
+    config.openaiKey = !!PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+    config.googleSearchKey = !!PropertiesService.getScriptProperties().getProperty('GOOGLE_SEARCH_API_KEY');
+    config.googleSearchEngineId = !!PropertiesService.getScriptProperties().getProperty('GOOGLE_SEARCH_ENGINE_ID');
+  } catch (error) {
+    Logger.log('API設定確認エラー:', error);
+  }
+  
+  return config;
+}
+
 /**
  * システム初期化状況の確認（スプレッドシートID指定版）
  */

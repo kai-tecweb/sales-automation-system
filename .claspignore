@@ -1,0 +1,11 @@
+README.md
+docs/**
+upload-instructions.md
+node_modules/**
+package*.json
+.git/**
+prepare-upload.sh
+upload-guide.md
+menu-troubleshooting.md
+src/menu.js
+src/help-manager.js

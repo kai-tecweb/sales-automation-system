@@ -962,11 +962,14 @@ function manageApiKeys() {
     
     let managementMenu = '🔑 APIキー管理（管理者専用）\n\n';
     managementMenu += '📋 管理機能:\n';
-    managementMenu += '• 設定状況詳細確認\n';
+    managementMenu += '• 設定状況詳細確認 + API接続テスト\n';
     managementMenu += '• APIキー一括リセット\n';
     managementMenu += '• 使用履歴確認\n';
     managementMenu += '• セキュリティ監査\n\n';
-    managementMenu += '実行する操作を選択してください:';
+    managementMenu += '実行する操作を選択してください:\n';
+    managementMenu += '• はい: 詳細確認 + テスト実行\n';
+    managementMenu += '• いいえ: APIキー一括リセット\n';
+    managementMenu += '• キャンセル: 使用履歴確認';
     
     const result = ui.alert(
       'APIキー管理',
@@ -993,30 +996,182 @@ function showDetailedApiKeyStatus() {
     const ui = SpreadsheetApp.getUi();
     const properties = PropertiesService.getScriptProperties();
     
-    const chatgptKey = properties.getProperty('CHATGPT_API_KEY') || '';
+    // APIキー取得（現在のシステムに合わせてキー名を修正）
+    const openaiKey = properties.getProperty('OPENAI_API_KEY') || '';
     const googleSearchKey = properties.getProperty('GOOGLE_SEARCH_API_KEY') || '';
     const googleSearchEngineId = properties.getProperty('GOOGLE_SEARCH_ENGINE_ID') || '';
     
-    let detailText = '🔑 APIキー詳細状況（管理者）\n\n';
+    let detailText = '🔑 APIキー詳細状況（管理者専用）\n\n';
     
-    detailText += '🤖 ChatGPT API:\n';
-    detailText += `• 状態: ${chatgptKey ? '✅ 設定済み' : '❌ 未設定'}\n`;
-    detailText += `• キー: ${chatgptKey ? chatgptKey.substring(0, 15) + '...' : 'なし'}\n`;
-    detailText += `• 長さ: ${chatgptKey ? chatgptKey.length + '文字' : '0文字'}\n\n`;
+    detailText += '🤖 OpenAI ChatGPT API:\n';
+    detailText += `• 状態: ${openaiKey ? '✅ 設定済み' : '❌ 未設定'}\n`;
+    detailText += `• キー: ${openaiKey ? openaiKey.substring(0, 15) + '...' : 'なし'}\n`;
+    detailText += `• 長さ: ${openaiKey ? openaiKey.length + '文字' : '0文字'}\n`;
+    detailText += `• 形式: ${openaiKey && openaiKey.startsWith('sk-') ? '✅ 正常' : '⚠️ 要確認'}\n\n`;
     
     detailText += '🔍 Google Search API:\n';
     detailText += `• APIキー: ${googleSearchKey ? '✅ 設定済み' : '❌ 未設定'}\n`;
     detailText += `• キー: ${googleSearchKey ? googleSearchKey.substring(0, 15) + '...' : 'なし'}\n`;
     detailText += `• Engine ID: ${googleSearchEngineId ? '✅ 設定済み' : '❌ 未設定'}\n`;
-    detailText += `• ID: ${googleSearchEngineId}\n\n`;
+    detailText += `• ID: ${googleSearchEngineId || 'なし'}\n\n`;
     
-    detailText += '⏰ 最終確認: ' + new Date().toLocaleString('ja-JP');
+    detailText += '📊 システム状況:\n';
+    detailText += `• 設定完了度: ${getApiConfigCompletionRate()}%\n`;
+    detailText += `• 最終確認: ${new Date().toLocaleString('ja-JP')}\n\n`;
     
-    ui.alert('詳細状況', detailText, ui.ButtonSet.OK);
+    detailText += '次の操作を選択してください:\n';
+    detailText += '• OK: API接続テスト実行\n';
+    detailText += '• キャンセル: 設定画面に戻る';
+    
+    const result = ui.alert('詳細状況確認', detailText, ui.ButtonSet.OK_CANCEL);
+    
+    if (result === ui.Button.OK) {
+      // API接続テストを実行
+      runAdminApiConnectionTest();
+    }
     
   } catch (error) {
     console.error('Detailed API key status error:', error);
     SpreadsheetApp.getUi().alert('❌ 詳細状況確認エラー: ' + String(error).substring(0, 100));
+  }
+}
+
+/**
+ * API設定完了率を計算
+ */
+function getApiConfigCompletionRate() {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    let score = 0;
+    
+    if (properties.getProperty('OPENAI_API_KEY')) score += 34;
+    if (properties.getProperty('GOOGLE_SEARCH_API_KEY')) score += 33;
+    if (properties.getProperty('GOOGLE_SEARCH_ENGINE_ID')) score += 33;
+    
+    return score;
+  } catch (error) {
+    return 0;
+  }
+}
+
+/**
+ * 管理者専用API接続テスト
+ */
+function runAdminApiConnectionTest() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    let testResults = '🧪 API接続テスト結果（管理者専用）\n\n';
+    
+    testResults += '⏳ テスト実行中...\n';
+    ui.alert('API接続テスト', testResults + '\n※ テストには数秒かかります', ui.ButtonSet.OK);
+    
+    // 詳細なテスト結果
+    let detailedResults = '';
+    let totalTests = 0;
+    let passedTests = 0;
+    
+    // OpenAI APIテスト
+    detailedResults += '🤖 OpenAI ChatGPT API テスト:\n';
+    try {
+      const openaiResult = checkOpenAIConnection();
+      totalTests++;
+      if (openaiResult) {
+        detailedResults += '• 接続テスト: ✅ 成功\n';
+        detailedResults += '• API認証: ✅ 正常\n';
+        detailedResults += '• レスポンス: ✅ 正常\n';
+        passedTests++;
+      } else {
+        detailedResults += '• 接続テスト: ❌ 失敗\n';
+      }
+    } catch (error) {
+      detailedResults += '• 接続テスト: ❌ エラー\n';
+      detailedResults += `• エラー内容: ${error.toString().substring(0, 50)}...\n`;
+    }
+    detailedResults += '\n';
+    
+    // Google Search APIテスト
+    detailedResults += '🔍 Google Search API テスト:\n';
+    try {
+      const googleResult = checkGoogleSearchConnection();
+      totalTests++;
+      if (googleResult) {
+        detailedResults += '• 接続テスト: ✅ 成功\n';
+        detailedResults += '• API認証: ✅ 正常\n';
+        detailedResults += '• 検索エンジン: ✅ 正常\n';
+        passedTests++;
+      } else {
+        detailedResults += '• 接続テスト: ❌ 失敗\n';
+      }
+    } catch (error) {
+      detailedResults += '• 接続テスト: ❌ エラー\n';
+      detailedResults += `• エラー内容: ${error.toString().substring(0, 50)}...\n`;
+    }
+    detailedResults += '\n';
+    
+    // システム全体テスト
+    detailedResults += '🏗️ システム統合テスト:\n';
+    try {
+      const healthCheck = performHealthCheck();
+      totalTests++;
+      if (healthCheck.errors.length === 0) {
+        detailedResults += '• システム状態: ✅ 正常\n';
+        detailedResults += '• シート構造: ✅ 正常\n';
+        detailedResults += '• 全体統合: ✅ 正常\n';
+        passedTests++;
+      } else {
+        detailedResults += '• システム状態: ⚠️ 警告あり\n';
+        detailedResults += `• 警告内容: ${healthCheck.errors.join(', ').substring(0, 50)}...\n`;
+      }
+    } catch (error) {
+      detailedResults += '• システム状態: ❌ エラー\n';
+      detailedResults += `• エラー内容: ${error.toString().substring(0, 50)}...\n`;
+    }
+    
+    // 最終結果サマリー
+    const successRate = Math.round((passedTests / totalTests) * 100);
+    let finalResults = '📊 テスト完了サマリー\n\n';
+    finalResults += `• 成功率: ${successRate}% (${passedTests}/${totalTests})\n`;
+    finalResults += `• システム状態: ${successRate === 100 ? '✅ 完全に正常' : successRate >= 66 ? '⚠️ 部分的に正常' : '❌ 要修復'}\n`;
+    finalResults += `• テスト実行時刻: ${new Date().toLocaleString('ja-JP')}\n\n`;
+    
+    // テスト結果をログシートに記録
+    try {
+      recordAdminTestResults(successRate, passedTests, totalTests, detailedResults);
+      finalResults += '📝 テスト結果をログシートに記録しました\n';
+    } catch (error) {
+      finalResults += '⚠️ ログ記録でエラーが発生しました\n';
+    }
+    
+    // 結果表示
+    ui.alert('API接続テスト完了', finalResults + '\n詳細結果は次に表示されます', ui.ButtonSet.OK);
+    ui.alert('詳細テスト結果', detailedResults, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('Admin API connection test error:', error);
+    SpreadsheetApp.getUi().alert('❌ API接続テストエラー: ' + String(error).substring(0, 100));
+  }
+}
+
+/**
+ * 管理者テスト結果をログシートに記録
+ */
+function recordAdminTestResults(successRate, passedTests, totalTests, detailedResults) {
+  try {
+    const sheet = getSafeSheet(SHEET_NAMES.LOGS);
+    const timestamp = new Date().toISOString();
+    const status = successRate === 100 ? '正常' : successRate >= 66 ? '警告' : 'エラー';
+    const summary = `成功率${successRate}% (${passedTests}/${totalTests})`;
+    
+    sheet.appendRow([
+      timestamp,
+      '管理者API接続テスト',
+      status,
+      summary,
+      detailedResults.substring(0, 500) // 長すぎる場合は切り詰め
+    ]);
+    
+  } catch (error) {
+    console.error('Failed to record admin test results:', error);
   }
 }
 

@@ -5,46 +5,10 @@
 
 function onOpen() {
   try {
-    console.log('🚀 Creating MAIN system menu...');
+    console.log('🚀 Creating role-based MAIN system menu...');
     
-    const ui = SpreadsheetApp.getUi();
-    
-    // メインシステムメニュー
-    ui.createMenu('🚀 営業自動化システム')
-      .addItem('📋 システム状態確認', 'checkSystemStatus')
-      .addItem('🔧 基本シート作成', 'initializeBasicSheets')
-      .addSeparator()
-      .addSubMenu(ui.createMenu('🔐 ライセンス管理')
-        .addItem('📋 ライセンス状況', 'showLicenseStatus')
-        .addItem('👤 管理者認証', 'authenticateAdminFixed')
-        .addSeparator()
-        .addItem('💰 料金プラン確認', 'showPricingPlans')
-        .addItem('⚙️ ライセンス設定', 'configureLicense')
-        .addSeparator()
-        .addItem('📅 使用開始設定', 'setLicenseStartDate')
-        .addItem('🔄 期限延長', 'extendLicense')
-        .addItem('🔒 システムロック解除', 'unlockSystem'))
-      .addSubMenu(ui.createMenu('🔑 API設定')
-        .addItem('🔧 APIキー設定', 'setApiKeys')
-        .addItem('📋 設定状況確認', 'checkApiKeys')
-        .addItem('🗑️ APIキー削除', 'clearApiKeys'))
-      .addSubMenu(ui.createMenu('👥 ユーザー管理')
-        .addItem('🔄 ユーザー切り替え', 'switchUserMode')
-        .addItem('📊 権限確認', 'checkUserPermissions'))
-      .addSubMenu(ui.createMenu('⚙️ システム管理')
-        .addItem('🔄 メニュー更新', 'forceUpdateMenu')
-        .addItem('🏥 システム診断', 'performSystemDiagnostics')
-        .addItem('� システム情報', 'showSystemInfo'))
-      .addToUi();
-    
-    console.log('✅ MAIN system menu created successfully');
-    
-    // システム起動通知
-    SpreadsheetApp.getActiveSpreadsheet().toast(
-      '営業自動化システム v2.0', 
-      '🚀 メニューシステム起動完了', 
-      5
-    );
+    // ユーザー権限に基づいてメニューを作成
+    createRoleBasedMenu();
     
   } catch (error) {
     console.error('❌ Main menu creation error:', error);
@@ -54,12 +18,162 @@ function onOpen() {
       SpreadsheetApp.getUi()
         .createMenu('🆘 営業システム (エラー)')
         .addItem('📋 状態確認', 'checkSystemStatus')
-        .addItem('🔄 メニュー再読み込み', 'reloadMenu')
+        .addItem('� メニュー再読み込み', 'reloadMenu')
         .addToUi();
     } catch (fallbackError) {
       console.error('❌ Fallback menu failed:', fallbackError);
     }
   }
+}
+
+/**
+ * ユーザー権限に基づいたメニュー作成
+ */
+function createRoleBasedMenu() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    // 現在のユーザー情報を取得
+    let currentUser;
+    try {
+      currentUser = getCurrentUser();
+    } catch (error) {
+      // ユーザー管理システムが初期化されていない場合はゲストとして扱う
+      console.log('ユーザー管理システム未初期化 - ゲストモードで開始');
+      currentUser = { isLoggedIn: false, role: 'Guest' };
+    }
+    
+    const userRole = currentUser.role || 'Guest';
+    const isLoggedIn = currentUser.isLoggedIn || false;
+    
+    console.log(`� ユーザーロール: ${userRole}, ログイン状態: ${isLoggedIn}`);
+    
+    // メインメニュー開始
+    const mainMenu = ui.createMenu(`� 営業自動化システム (${userRole})`);
+    
+    // 基本システム機能（全ユーザー共通）
+    mainMenu.addItem('� システム状態確認', 'checkSystemStatus');
+    
+    // ログイン/ログアウト機能
+    if (isLoggedIn) {
+      mainMenu.addItem('� ユーザー状態', 'showCurrentUserStatus');
+      mainMenu.addItem('� ログアウト', 'logoutUser');
+    } else {
+      mainMenu.addItem('� ユーザーログイン', 'showUserLoginDialog');
+    }
+    
+    mainMenu.addSeparator();
+    
+    // 権限別メニュー追加
+    if (userRole === 'Administrator') {
+      addAdministratorMenu(mainMenu, ui);
+    } else if (userRole === 'Standard') {
+      addStandardUserMenu(mainMenu, ui);
+    } else {
+      addGuestUserMenu(mainMenu, ui);
+    }
+    
+    // メニューを有効化
+    mainMenu.addToUi();
+    
+    console.log('✅ Role-based system menu created successfully');
+    
+    // システム起動通知
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      `営業自動化システム v2.0 - ${userRole}モード`, 
+      '🚀 メニューシステム起動完了', 
+      5
+    );
+    
+  } catch (error) {
+    console.error('❌ Role-based menu creation error:', error);
+    throw error;
+  }
+}
+
+/**
+ * 管理者用メニュー追加
+ */
+function addAdministratorMenu(mainMenu, ui) {
+  // 管理者は全機能にアクセス可能
+  mainMenu.addItem('🔧 基本シート作成', 'initializeBasicSheets');
+  
+  // ライセンス管理（管理者専用）
+  mainMenu.addSubMenu(ui.createMenu('🔐 ライセンス管理')
+    .addItem('📋 ライセンス状況', 'showLicenseStatus')
+    .addItem('👤 管理者認証', 'authenticateAdminFixed')
+    .addSeparator()
+    .addItem('💰 料金プラン確認', 'showPricingPlans')
+    .addItem('⚙️ ライセンス設定', 'configureLicense')
+    .addSeparator()
+    .addItem('📅 使用開始設定', 'setLicenseStartDate')
+    .addItem('🔄 期限延長', 'extendLicense')
+    .addItem('🔒 システムロック解除', 'unlockSystem'));
+  
+  // API設定（管理者専用）
+  mainMenu.addSubMenu(ui.createMenu('🔑 API設定')
+    .addItem('🔧 APIキー設定', 'setApiKeys')
+    .addItem('📋 設定状況確認', 'checkApiKeys')
+    .addItem('🗑️ APIキー削除', 'clearApiKeys'));
+  
+  // ユーザー管理（管理者専用）
+  mainMenu.addSubMenu(ui.createMenu('👥 ユーザー管理')
+    .addItem('👤 ユーザー管理シート初期化', 'initializeUserManagementSheet')
+    .addItem('� 新規ユーザー作成', 'showCreateUserDialog')
+    .addItem('📋 ユーザーリスト表示', 'showUserListDialog')
+    .addSeparator()
+    .addItem('🔄 ユーザー切り替え', 'switchUserMode')
+    .addItem('📊 権限確認', 'checkUserPermissions'));
+  
+  // 営業自動化機能（全機能）
+  mainMenu.addSubMenu(ui.createMenu('🚀 営業自動化')
+    .addItem('🔤 キーワード生成', 'generateKeywords')
+    .addItem('🏢 企業検索', 'searchCompanies')
+    .addItem('💬 提案メッセージ生成', 'generateProposals')
+    .addSeparator()
+    .addItem('⚡ 完全自動化実行', 'executeFullWorkflow'));
+  
+  // システム管理（管理者専用）
+  mainMenu.addSubMenu(ui.createMenu('⚙️ システム管理')
+    .addItem('🔄 メニュー更新', 'forceUpdateMenu')
+    .addItem('🏥 システム診断', 'performSystemDiagnostics')
+    .addItem('📊 システム情報', 'showSystemInfo'));
+}
+
+/**
+ * スタンダードユーザー用メニュー追加
+ */
+function addStandardUserMenu(mainMenu, ui) {
+  // 営業自動化機能（基本機能のみ）
+  mainMenu.addSubMenu(ui.createMenu('🚀 営業自動化')
+    .addItem('🔤 キーワード生成', 'generateKeywordsWithPermissionCheck')
+    .addItem('🏢 企業検索', 'searchCompaniesWithPermissionCheck')
+    .addItem('💬 提案メッセージ生成', 'generateProposalsWithPermissionCheck')
+    .addSeparator()
+    .addItem('⚡ 基本自動化実行', 'executeBasicWorkflow'));
+  
+  // データ閲覧機能
+  mainMenu.addSubMenu(ui.createMenu('📊 データ閲覧')
+    .addItem('📋 生成キーワード表示', 'viewKeywordData')
+    .addItem('🏢 企業データ表示', 'viewCompanyData')
+    .addItem('💬 提案メッセージ表示', 'viewProposalData'));
+  
+  // ライセンス状況確認（読み取り専用）
+  mainMenu.addItem('📋 ライセンス状況確認', 'showLicenseStatusReadOnly');
+}
+
+/**
+ * ゲストユーザー用メニュー追加
+ */
+function addGuestUserMenu(mainMenu, ui) {
+  // 閲覧機能のみ
+  mainMenu.addSubMenu(ui.createMenu('👁️ データ閲覧（読み取り専用）')
+    .addItem('📋 キーワードデータ表示', 'viewKeywordDataReadOnly')
+    .addItem('🏢 企業データ表示', 'viewCompanyDataReadOnly')
+    .addItem('💬 提案メッセージ表示', 'viewProposalDataReadOnly'));
+  
+  // システム情報確認（限定版）
+  mainMenu.addItem('📊 システム情報確認', 'showSystemInfoLimited');
 }
 
 /**
@@ -73,6 +187,357 @@ function reloadMenu() {
   } catch (error) {
     console.error('Menu reload error:', error);
     SpreadsheetApp.getUi().alert('❌ エラー', 'メニュー再読み込みでエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+// =================================
+// 権限チェック付き機能実行関数
+// =================================
+
+/**
+ * 権限チェック付きキーワード生成
+ */
+function generateKeywordsWithPermissionCheck() {
+  try {
+    const permission = checkUserPermission('Standard');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。\nログインしてください。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    // キーワード生成機能の実行
+    if (typeof generateStrategicKeywords === 'function') {
+      generateStrategicKeywords();
+    } else {
+      SpreadsheetApp.getUi().alert('機能エラー', 'キーワード生成機能が見つかりません', SpreadsheetApp.getUi().ButtonSet.OK);
+    }
+    
+  } catch (error) {
+    console.error('❌ キーワード生成（権限チェック付き）エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'キーワード生成中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 権限チェック付き企業検索
+ */
+function searchCompaniesWithPermissionCheck() {
+  try {
+    const permission = checkUserPermission('Standard');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。\nログインしてください。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    // 企業検索機能の実行
+    if (typeof executeCompanySearch === 'function') {
+      executeCompanySearch();
+    } else {
+      SpreadsheetApp.getUi().alert('機能エラー', '企業検索機能が見つかりません', SpreadsheetApp.getUi().ButtonSet.OK);
+    }
+    
+  } catch (error) {
+    console.error('❌ 企業検索（権限チェック付き）エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '企業検索中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 権限チェック付き提案生成
+ */
+function generateProposalsWithPermissionCheck() {
+  try {
+    const permission = checkUserPermission('Standard');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。\nログインしてください。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    // 提案生成機能の実行
+    if (typeof generatePersonalizedProposals === 'function') {
+      generatePersonalizedProposals();
+    } else {
+      SpreadsheetApp.getUi().alert('機能エラー', '提案生成機能が見つかりません', SpreadsheetApp.getUi().ButtonSet.OK);
+    }
+    
+  } catch (error) {
+    console.error('❌ 提案生成（権限チェック付き）エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '提案生成中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 基本ワークフロー実行（スタンダードユーザー用）
+ */
+function executeBasicWorkflow() {
+  try {
+    const permission = checkUserPermission('Standard');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。\nログインしてください。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    // 基本ワークフロー実行
+    const ui = SpreadsheetApp.getUi();
+    const response = ui.alert(
+      '基本ワークフロー実行',
+      'キーワード生成、企業検索、提案生成を順次実行します。\n実行しますか？',
+      ui.ButtonSet.YES_NO
+    );
+    
+    if (response === ui.Button.YES) {
+      ui.alert('実行開始', '基本ワークフローを開始します', ui.ButtonSet.OK);
+      
+      // 段階的実行
+      generateKeywordsWithPermissionCheck();
+      Utilities.sleep(2000); // 2秒待機
+      searchCompaniesWithPermissionCheck();
+      Utilities.sleep(2000); // 2秒待機
+      generateProposalsWithPermissionCheck();
+      
+      ui.alert('実行完了', '基本ワークフローが完了しました', ui.ButtonSet.OK);
+    }
+    
+  } catch (error) {
+    console.error('❌ 基本ワークフロー実行エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '基本ワークフロー実行中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+// =================================
+// 閲覧専用機能
+// =================================
+
+/**
+ * ライセンス状況確認（読み取り専用）
+ */
+function showLicenseStatusReadOnly() {
+  try {
+    // ライセンス情報の読み取り専用表示
+    if (typeof showLicenseStatus === 'function') {
+      showLicenseStatus();
+    } else {
+      SpreadsheetApp.getUi().alert('情報', 'ライセンス管理機能が見つかりません', SpreadsheetApp.getUi().ButtonSet.OK);
+    }
+  } catch (error) {
+    console.error('❌ ライセンス状況確認エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'ライセンス状況確認中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * システム情報確認（限定版）
+ */
+function showSystemInfoLimited() {
+  try {
+    const systemInfo = `
+🚀 営業自動化システム v2.0
+
+👤 現在のユーザー: ゲストユーザー
+🔑 権限レベル: 閲覧のみ
+⏰ アクセス時刻: ${new Date().toLocaleString()}
+
+📋 利用可能機能:
+- データ閲覧（読み取り専用）
+- システム情報確認
+
+💡 ヒント:
+ログインすると追加機能が利用できます
+    `;
+    
+    SpreadsheetApp.getUi().alert('システム情報', systemInfo, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ システム情報確認エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'システム情報確認中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+// =================================
+// ユーザー管理UI機能
+// =================================
+
+/**
+ * 新規ユーザー作成ダイアログ表示
+ */
+function showCreateUserDialog() {
+  try {
+    // 管理者権限チェック
+    const permission = checkUserPermission('Administrator');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'ユーザー作成には管理者権限が必要です。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    const html = `
+      <div style="padding: 20px; font-family: Arial, sans-serif;">
+        <h2>👤 新規ユーザー作成</h2>
+        <form>
+          <div style="margin-bottom: 15px;">
+            <label for="username" style="display: block; margin-bottom: 5px;">ユーザー名:</label>
+            <input type="text" id="username" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+          <div style="margin-bottom: 15px;">
+            <label for="password" style="display: block; margin-bottom: 5px;">パスワード:</label>
+            <input type="password" id="password" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <small style="color: #666;">※8文字以上、英数字と記号を含む</small>
+          </div>
+          <div style="margin-bottom: 15px;">
+            <label for="role" style="display: block; margin-bottom: 5px;">権限レベル:</label>
+            <select id="role" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              <option value="Standard">スタンダードユーザー</option>
+              <option value="Administrator">管理者</option>
+            </select>
+          </div>
+          <div style="text-align: center;">
+            <button type="button" onclick="createNewUser()" style="background: #4285f4; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">作成</button>
+            <button type="button" onclick="google.script.host.close()" style="background: #ccc; color: black; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">キャンセル</button>
+          </div>
+        </form>
+        <div id="message" style="margin-top: 15px; padding: 10px; display: none;"></div>
+      </div>
+      
+      <script>
+        function createNewUser() {
+          const username = document.getElementById('username').value;
+          const password = document.getElementById('password').value;
+          const role = document.getElementById('role').value;
+          
+          if (!username || !password) {
+            showMessage('ユーザー名とパスワードを入力してください', 'error');
+            return;
+          }
+          
+          google.script.run
+            .withSuccessHandler(onCreateSuccess)
+            .withFailureHandler(onCreateFailure)
+            .createUser(username, password, role, 'システム管理者');
+        }
+        
+        function onCreateSuccess(result) {
+          if (result.success) {
+            showMessage('ユーザーの作成が完了しました', 'success');
+            setTimeout(() => {
+              google.script.host.close();
+            }, 2000);
+          } else {
+            showMessage(result.message || 'ユーザー作成に失敗しました', 'error');
+          }
+        }
+        
+        function onCreateFailure(error) {
+          showMessage('ユーザー作成中にエラーが発生しました', 'error');
+        }
+        
+        function showMessage(text, type) {
+          const messageDiv = document.getElementById('message');
+          messageDiv.textContent = text;
+          messageDiv.style.display = 'block';
+          messageDiv.style.backgroundColor = type === 'success' ? '#d4edda' : '#f8d7da';
+          messageDiv.style.color = type === 'success' ? '#155724' : '#721c24';
+          messageDiv.style.border = '1px solid ' + (type === 'success' ? '#c3e6cb' : '#f5c6cb');
+          messageDiv.style.borderRadius = '4px';
+        }
+      </script>
+    `;
+    
+    const htmlOutput = HtmlService.createHtmlOutput(html)
+      .setWidth(450)
+      .setHeight(400);
+    
+    SpreadsheetApp.getUi().showModalDialog(htmlOutput, '新規ユーザー作成');
+    
+  } catch (error) {
+    console.error('❌ ユーザー作成ダイアログ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'ユーザー作成画面の表示に失敗しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * ユーザーリスト表示ダイアログ
+ */
+function showUserListDialog() {
+  try {
+    // 管理者権限チェック
+    const permission = checkUserPermission('Administrator');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'ユーザーリスト表示には管理者権限が必要です。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    const users = getUserList();
+    
+    let userListHtml = '';
+    if (users.length === 0) {
+      userListHtml = '<tr><td colspan="4" style="text-align: center;">ユーザーが登録されていません</td></tr>';
+    } else {
+      users.forEach(user => {
+        userListHtml += `
+          <tr>
+            <td>${user.username}</td>
+            <td>${user.role}</td>
+            <td>${user.createdDate ? new Date(user.createdDate).toLocaleDateString() : '不明'}</td>
+            <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : '未ログイン'}</td>
+          </tr>
+        `;
+      });
+    }
+    
+    const html = `
+      <div style="padding: 20px; font-family: Arial, sans-serif;">
+        <h2>👥 ユーザーリスト</h2>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+          <thead>
+            <tr style="background-color: #f5f5f5;">
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">ユーザー名</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">権限</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">作成日</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">最終ログイン</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${userListHtml}
+          </tbody>
+        </table>
+        <div style="text-align: center; margin-top: 20px;">
+          <button type="button" onclick="google.script.host.close()" style="background: #4285f4; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">閉じる</button>
+        </div>
+      </div>
+    `;
+    
+    const htmlOutput = HtmlService.createHtmlOutput(html)
+      .setWidth(600)
+      .setHeight(400);
+    
+    SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'ユーザーリスト');
+    
+  } catch (error) {
+    console.error('❌ ユーザーリスト表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'ユーザーリスト表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }
 

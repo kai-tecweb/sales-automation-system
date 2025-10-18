@@ -371,6 +371,202 @@ function showSystemInfoLimited() {
 }
 
 // =================================
+// データ閲覧機能
+// =================================
+
+/**
+ * キーワードデータ表示（スタンダードユーザー用）
+ */
+function viewKeywordData() {
+  try {
+    const permission = checkUserPermission('Standard');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('生成キーワード');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', 'キーワードデータが見つかりません。\nまずキーワード生成を実行してください。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', 'キーワードデータがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする
+    SpreadsheetApp.setActiveSheet(sheet);
+    SpreadsheetApp.getUi().alert('📋 キーワードデータ', `生成されたキーワードデータを表示しました。\n総計: ${lastRow - 1}件のキーワード`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ キーワードデータ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'キーワードデータ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 企業データ表示（スタンダードユーザー用）
+ */
+function viewCompanyData() {
+  try {
+    const permission = checkUserPermission('Standard');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('企業マスター');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', '企業データが見つかりません。\nまず企業検索を実行してください。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', '企業データがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする
+    SpreadsheetApp.setActiveSheet(sheet);
+    SpreadsheetApp.getUi().alert('🏢 企業データ', `検索された企業データを表示しました。\n総計: ${lastRow - 1}件の企業`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ 企業データ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '企業データ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 提案データ表示（スタンダードユーザー用）
+ */
+function viewProposalData() {
+  try {
+    const permission = checkUserPermission('Standard');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('提案メッセージ');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', '提案データが見つかりません。\nまず提案生成を実行してください。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', '提案データがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする
+    SpreadsheetApp.setActiveSheet(sheet);
+    SpreadsheetApp.getUi().alert('💬 提案データ', `生成された提案メッセージを表示しました。\n総計: ${lastRow - 1}件の提案`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ 提案データ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '提案データ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * キーワードデータ表示（ゲストユーザー用・読み取り専用）
+ */
+function viewKeywordDataReadOnly() {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('生成キーワード');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', 'キーワードデータが見つかりません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', 'キーワードデータがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする（読み取り専用）
+    SpreadsheetApp.setActiveSheet(sheet);
+    SpreadsheetApp.getUi().alert('📋 キーワードデータ（読み取り専用）', `生成されたキーワードデータを表示しました。\n総計: ${lastRow - 1}件のキーワード\n\n⚠️ ゲストユーザーのため編集はできません。`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ キーワードデータ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'キーワードデータ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 企業データ表示（ゲストユーザー用・読み取り専用）
+ */
+function viewCompanyDataReadOnly() {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('企業マスター');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', '企業データが見つかりません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', '企業データがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする（読み取り専用）
+    SpreadsheetApp.setActiveSheet(sheet);
+    SpreadsheetApp.getUi().alert('🏢 企業データ（読み取り専用）', `検索された企業データを表示しました。\n総計: ${lastRow - 1}件の企業\n\n⚠️ ゲストユーザーのため編集はできません。`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ 企業データ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '企業データ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 提案データ表示（ゲストユーザー用・読み取り専用）
+ */
+function viewProposalDataReadOnly() {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('提案メッセージ');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', '提案データが見つかりません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', '提案データがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする（読み取り専用）
+    SpreadsheetApp.setActiveSheet(sheet);
+    SpreadsheetApp.getUi().alert('💬 提案データ（読み取り専用）', `生成された提案メッセージを表示しました。\n総計: ${lastRow - 1}件の提案\n\n⚠️ ゲストユーザーのため編集はできません。`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ 提案データ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '提案データ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+// =================================
 // ユーザー管理UI機能
 // =================================
 

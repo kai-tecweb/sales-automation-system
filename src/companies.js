@@ -4,22 +4,68 @@
  */
 
 /**
+ * 制御パネル設定を取得（企業検索用）
+ */
+function getControlPanelSettingsForCompanies() {
+  const sheet = getSafeSheet(SHEET_NAMES.CONTROL);
+  if (!sheet) {
+    throw new Error('制御パネルシートが見つかりません。システムを初期化してください。');
+  }
+  
+  // 制御パネルからデータを取得
+  const data = sheet.getRange('A2:B6').getValues();
+  
+  return {
+    productName: data[0][1] || '',
+    productDescription: data[1][1] || '',
+    priceRange: data[2][1] || '',
+    targetSize: data[3][1] || '',
+    preferredRegion: data[4][1] || '',
+    maxCompanies: 20 // 1回の実行で検索する最大企業数
+  };
+}
+
+/**
  * 企業検索の実行
  */
 function executeCompanySearch() {
   const startTime = new Date();
   
   try {
-    // システム初期化確認
-    checkSystemInitialization();
-    
+    console.log('🏢 企業検索を開始します...');
     updateExecutionStatus('企業検索を開始します...');
     
-    const settings = getControlPanelSettings();
+    // システム初期化確認
+    const systemStatus = checkSystemStatus();
+    console.log('システム状況:', systemStatus);
+    
+    if (systemStatus && systemStatus.needsInitialization) {
+      throw new Error(`システムが初期化されていません: ${systemStatus.message}`);
+    }
+    
+    const settings = getControlPanelSettingsForCompanies();
     const keywords = getUnprocessedKeywords();
     
+    // APIキーの確認
+    const apiKey = PropertiesService.getScriptProperties().getProperty('GOOGLE_SEARCH_API_KEY');
+    const searchEngineId = PropertiesService.getScriptProperties().getProperty('GOOGLE_SEARCH_ENGINE_ID');
+    
+    if (!apiKey || !searchEngineId) {
+      SpreadsheetApp.getUi().alert(
+        '❌ エラー', 
+        'Google Search APIキーまたは検索エンジンIDが設定されていません。\n\nメニュー > ⚙️ システム管理 > ⚙️ API設定管理 から設定してください。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
     if (keywords.length === 0) {
-      throw new Error('未処理のキーワードがありません。まずキーワード生成を実行してください。');
+      SpreadsheetApp.getUi().alert(
+        '❌ エラー', 
+        '未処理のキーワードがありません。\nまずキーワード生成を実行してください。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
     }
     
     let totalCompanies = 0;
@@ -58,7 +104,18 @@ function executeCompanySearch() {
     return totalCompanies;
     
   } catch (error) {
-    handleSystemError('企業検索', error);
+    console.error('❌ 企業検索エラー:', error);
+    updateExecutionStatus(`エラー: ${error.message}`);
+    
+    // ユーザーフレンドリーなエラーメッセージ
+    let userMessage = error.message;
+    if (error.message.includes('Cannot read properties')) {
+      userMessage = 'システム初期化に問題があります。メニュー > システム管理 > システム初期化 を実行してください。';
+    } else if (error.message.includes('API')) {
+      userMessage = 'API設定に問題があります。メニュー > システム管理 > API設定管理 で設定を確認してください。';
+    }
+    
+    SpreadsheetApp.getUi().alert('❌ エラー', `企業検索でエラーが発生しました:\n\n${userMessage}`, SpreadsheetApp.getUi().ButtonSet.OK);
     return 0;
   }
 }
@@ -130,8 +187,8 @@ function searchCompaniesByKeyword(keywordObj, settings) {
  * Google Custom Search APIでの検索
  */
 function performGoogleSearch(keyword, settings) {
-  const apiKey = API_KEYS.GOOGLE_SEARCH;
-  const searchEngineId = API_KEYS.GOOGLE_SEARCH_ENGINE_ID;
+  const apiKey = PropertiesService.getScriptProperties().getProperty('GOOGLE_SEARCH_API_KEY');
+  const searchEngineId = PropertiesService.getScriptProperties().getProperty('GOOGLE_SEARCH_ENGINE_ID');
   
   if (!apiKey || !searchEngineId) {
     throw new Error('Google Search APIキーまたは検索エンジンIDが設定されていません');
@@ -273,13 +330,70 @@ URL：${searchResult.link}
       temperature: 0.3
     };
     
-    const response = callOpenAIAPI(payload);
+    const response = callOpenAIAPIForCompanies(payload);
     return parseCompanyInfoResponse(response);
     
   } catch (error) {
-    Logger.log(`企業情報抽出エラー: ${error.toString()}`);
+    console.error(`企業情報抽出エラー: ${error.toString()}`);
     return null;
   }
+}
+
+/**
+ * OpenAI API呼び出し（企業検索用）
+ */
+function callOpenAIAPIForCompanies(payload) {
+  return apiCallWithRetryForCompanies(() => {
+    const apiKey = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+    if (!apiKey) {
+      throw new Error('OpenAI APIキーが設定されていません');
+    }
+    
+    const options = {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify(payload)
+    };
+    
+    const response = UrlFetchApp.fetch('https://api.openai.com/v1/chat/completions', options);
+    
+    if (response.getResponseCode() !== 200) {
+      const errorText = response.getContentText();
+      throw new Error(`OpenAI API Error (${response.getResponseCode()}): ${errorText}`);
+    }
+    
+    const data = JSON.parse(response.getContentText());
+    return data.choices[0].message.content;
+  });
+}
+
+/**
+ * API呼び出しのリトライ機能（企業検索用）
+ */
+function apiCallWithRetryForCompanies(apiFunction, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return apiFunction();
+    } catch (error) {
+      const errorStr = error.toString();
+      
+      // API制限エラーの場合は指数バックオフで再試行
+      if (errorStr.includes('quota') || errorStr.includes('limit') || errorStr.includes('rate_limit')) {
+        const waitTime = Math.pow(2, i) * 1000; // 1秒, 2秒, 4秒
+        console.log(`API制限検出。${waitTime}ms待機後に再試行します...`);
+        Utilities.sleep(waitTime);
+        continue;
+      }
+      
+      // その他のエラーは即座にスロー
+      throw error;
+    }
+  }
+  
+  throw new Error('API制限により処理を中止しました。時間をおいて再実行してください。');
 }
 
 /**

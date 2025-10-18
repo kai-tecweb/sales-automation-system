@@ -78,6 +78,9 @@ function createRoleBasedMenu() {
     
     console.log('✅ Role-based system menu created successfully');
     
+    // 権限に応じたシート可視性制御
+    controlSheetVisibility(userRole);
+    
     // システム起動通知
     SpreadsheetApp.getActiveSpreadsheet().toast(
       `営業自動化システム v2.0 - ${userRole}モード`, 
@@ -371,6 +374,78 @@ function showSystemInfoLimited() {
 }
 
 // =================================
+// シート可視性制御機能
+// =================================
+
+/**
+ * ユーザー権限に基づくシート可視性制御
+ */
+function controlSheetVisibility(userRole) {
+  try {
+    console.log(`🔍 シート可視性制御開始: ${userRole}`);
+    
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheets = spreadsheet.getSheets();
+    
+    sheets.forEach(sheet => {
+      const sheetName = sheet.getName();
+      
+      if (userRole === 'Administrator') {
+        // 管理者：すべてのシートを表示
+        sheet.showSheet();
+        console.log(`👁️ 管理者: ${sheetName} - 表示`);
+        
+      } else if (userRole === 'Standard') {
+        // スタンダードユーザー：管理系シート以外を表示
+        if (['ユーザー管理'].includes(sheetName)) {
+          sheet.hideSheet();
+          console.log(`🚫 スタンダード: ${sheetName} - 非表示`);
+        } else {
+          sheet.showSheet();
+          console.log(`👁️ スタンダード: ${sheetName} - 表示`);
+        }
+        
+      } else {
+        // ゲストユーザー：データシートのみ表示
+        if (['生成キーワード', '企業マスター', '提案メッセージ'].includes(sheetName)) {
+          sheet.showSheet();
+          console.log(`👁️ ゲスト: ${sheetName} - 表示`);
+        } else {
+          sheet.hideSheet();
+          console.log(`🚫 ゲスト: ${sheetName} - 非表示`);
+        }
+      }
+    });
+    
+    console.log('✅ シート可視性制御完了');
+    
+  } catch (error) {
+    console.error('❌ シート可視性制御エラー:', error);
+  }
+}
+
+/**
+ * ログイン時のシート表示更新
+ */
+function updateSheetVisibilityOnLogin(userRole) {
+  try {
+    controlSheetVisibility(userRole);
+    
+    // メニューも更新
+    createRoleBasedMenu();
+    
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      `シート表示を${userRole}モードに更新しました`, 
+      '🔄 表示更新完了', 
+      3
+    );
+    
+  } catch (error) {
+    console.error('❌ ログイン時シート更新エラー:', error);
+  }
+}
+
+// =================================
 // データ閲覧機能
 // =================================
 
@@ -504,7 +579,14 @@ function viewKeywordDataReadOnly() {
     
     // データをアクティブにする（読み取り専用）
     SpreadsheetApp.setActiveSheet(sheet);
-    SpreadsheetApp.getUi().alert('📋 キーワードデータ（読み取り専用）', `生成されたキーワードデータを表示しました。\n総計: ${lastRow - 1}件のキーワード\n\n⚠️ ゲストユーザーのため編集はできません。`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+    // ゲスト用：最新20件のみ表示推奨の警告
+    const displayCount = Math.min(lastRow - 1, 20);
+    SpreadsheetApp.getUi().alert(
+      '📋 キーワードデータ（読み取り専用）', 
+      `生成されたキーワードデータを表示しました。\n総計: ${lastRow - 1}件のキーワード（最新${displayCount}件を表示推奨）\n\n⚠️ ゲストユーザーのため編集はできません。`, 
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
     
   } catch (error) {
     console.error('❌ キーワードデータ表示エラー:', error);
@@ -531,7 +613,14 @@ function viewCompanyDataReadOnly() {
     
     // データをアクティブにする（読み取り専用）
     SpreadsheetApp.setActiveSheet(sheet);
-    SpreadsheetApp.getUi().alert('🏢 企業データ（読み取り専用）', `検索された企業データを表示しました。\n総計: ${lastRow - 1}件の企業\n\n⚠️ ゲストユーザーのため編集はできません。`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+    // ゲスト用：最新20件のみ表示推奨の警告
+    const displayCount = Math.min(lastRow - 1, 20);
+    SpreadsheetApp.getUi().alert(
+      '🏢 企業データ（読み取り専用）', 
+      `検索された企業データを表示しました。\n総計: ${lastRow - 1}件の企業（最新${displayCount}件を表示推奨）\n\n⚠️ ゲストユーザーのため編集はできません。`, 
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
     
   } catch (error) {
     console.error('❌ 企業データ表示エラー:', error);
@@ -558,7 +647,14 @@ function viewProposalDataReadOnly() {
     
     // データをアクティブにする（読み取り専用）
     SpreadsheetApp.setActiveSheet(sheet);
-    SpreadsheetApp.getUi().alert('💬 提案データ（読み取り専用）', `生成された提案メッセージを表示しました。\n総計: ${lastRow - 1}件の提案\n\n⚠️ ゲストユーザーのため編集はできません。`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+    // ゲスト用：最新20件のみ表示推奨の警告
+    const displayCount = Math.min(lastRow - 1, 20);
+    SpreadsheetApp.getUi().alert(
+      '💬 提案データ（読み取り専用）', 
+      `生成された提案メッセージを表示しました。\n総計: ${lastRow - 1}件の提案（最新${displayCount}件を表示推奨）\n\n⚠️ ゲストユーザーのため編集はできません。`, 
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
     
   } catch (error) {
     console.error('❌ 提案データ表示エラー:', error);

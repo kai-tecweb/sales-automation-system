@@ -233,6 +233,15 @@ function startUserSession(userId, username, role) {
     
     console.log(`✅ セッション開始: ${username} (${role})`);
     
+    // シート可視性を更新
+    try {
+      if (typeof updateSheetVisibilityOnLogin === 'function') {
+        updateSheetVisibilityOnLogin(role);
+      }
+    } catch (error) {
+      console.log('シート可視性更新をスキップ:', error.message);
+    }
+    
   } catch (error) {
     console.error('❌ セッション開始エラー:', error);
     throw error;
@@ -308,6 +317,15 @@ function endUserSession() {
     properties.deleteProperty(SESSION_PROPERTIES.SESSION_TIMEOUT);
     
     console.log('✅ セッション終了');
+    
+    // ゲストモードにシート可視性を戻す
+    try {
+      if (typeof updateSheetVisibilityOnLogin === 'function') {
+        updateSheetVisibilityOnLogin('Guest');
+      }
+    } catch (error) {
+      console.log('シート可視性更新をスキップ:', error.message);
+    }
     
   } catch (error) {
     console.error('❌ セッション終了エラー:', error);

@@ -118,7 +118,11 @@ function addAdministratorMenu(mainMenu, ui) {
   mainMenu.addSubMenu(ui.createMenu('🔐 API設定')
     .addItem('🔧 APIキー設定', 'setApiKeys')
     .addItem('📋 設定状況確認', 'checkApiKeys')
-    .addItem('🗑️ APIキー削除', 'clearApiKeys'));
+    .addItem('🗑️ APIキー削除', 'clearApiKeys')
+    .addSeparator()
+    .addItem('🔌 API統合テスト', 'testAPIIntegration')
+    .addItem('📊 API使用量確認', 'checkAPIQuotaUsage')
+    .addItem('⚠️ API制限チェック', 'checkAPILimits'));
   
   // ユーザー管理（管理者専用）
   mainMenu.addSubMenu(ui.createMenu('👥 ユーザー管理')
@@ -145,7 +149,11 @@ function addAdministratorMenu(mainMenu, ui) {
     .addSeparator()
     .addItem('🧪 包括的システムテスト', 'runComprehensiveSystemTest')
     .addItem('🔐 権限テスト実行', 'testUserPermissions')
-    .addItem('💊 システム健康チェック', 'performSystemHealthCheck'));
+    .addItem('💊 システム健康チェック', 'performSystemHealthCheck')
+    .addSeparator()
+    .addItem('🔒 セキュリティテスト実行', 'runSecurityTests')
+    .addItem('📋 セキュリティ推奨事項', 'showSecurityRecommendations')
+    .addItem('🔍 セキュリティ監査ログ', 'generateSecurityAuditLog'));
 }
 
 /**

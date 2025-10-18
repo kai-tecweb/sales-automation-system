@@ -1078,7 +1078,7 @@ function showSystemStatus() {
 /**
  * カスタムメニューの作成
  */
-function onOpen() {
+function onOpen_DISABLED() {
   try {
     const ui = SpreadsheetApp.getUi();
     

@@ -1,8 +1,9 @@
 /**
  * 営業自動化システム - 完全版メニュー
+ * 注意: onOpen関数は simple-menu-test.js に移動済み
  */
 
-function onOpen() {
+function onOpen_DISABLED() {
   try {
     console.log('Creating comprehensive sales automation menu...');
     

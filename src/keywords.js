@@ -292,25 +292,30 @@ function saveKeywordsToSheet(keywords) {
 }
 
 /**
- * 提案生成（デモ版）
+ * 提案生成（メニュー呼び出し用）
  */
 function generatePersonalizedProposals() {
   try {
-    SpreadsheetApp.getUi().alert('提案生成', '提案生成機能（デモ版）\n\n次のフェーズで実装予定です。', SpreadsheetApp.getUi().ButtonSet.OK);
+    console.log('💬 提案生成を開始します...');
+    updateExecutionStatus('提案メッセージ生成を開始します...');
+    
+    // APIキーの確認
+    const apiKey = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+    if (!apiKey) {
+      SpreadsheetApp.getUi().alert('❌ エラー', 'OpenAI APIキーが設定されていません。\n\nメニュー > ⚙️ システム管理 > ⚙️ API設定管理 から設定してください。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // proposals.jsの詳細ログ付き提案生成機能を呼び出し
+    executeProposalGenerationEnhanced();
+    
+    console.log('✅ 提案生成処理完了');
+    
   } catch (error) {
     console.error('❌ 提案生成エラー:', error);
+    updateExecutionStatus(`エラー: ${error.message}`);
     SpreadsheetApp.getUi().alert('❌ エラー', `提案生成でエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }
 
-/**
- * 完全自動化実行（デモ版）
- */
-function executeFullWorkflow() {
-  try {
-    SpreadsheetApp.getUi().alert('完全自動化', '完全自動化機能（デモ版）\n\n次のフェーズで実装予定です。', SpreadsheetApp.getUi().ButtonSet.OK);
-  } catch (error) {
-    console.error('❌ 完全自動化エラー:', error);
-    SpreadsheetApp.getUi().alert('❌ エラー', `完全自動化でエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
-  }
-}
+// 完全自動化実行機能はworkflow.jsファイルで実装されています

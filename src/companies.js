@@ -28,7 +28,7 @@ function getControlPanelSettingsForCompanies() {
 /**
  * 企業検索の実行
  */
-function executeCompanySearch() {
+function executeCompanySearchFromCompanies() {
   const startTime = new Date();
   
   try {
@@ -60,12 +60,26 @@ function executeCompanySearch() {
     }
     
     if (keywords.length === 0) {
-      SpreadsheetApp.getUi().alert(
-        '❌ エラー', 
-        '未処理のキーワードがありません。\nまずキーワード生成を実行してください。', 
-        SpreadsheetApp.getUi().ButtonSet.OK
+      const message = '🔤 キーワードが見つかりません\n\n' +
+                     '企業検索を実行するには、まずキーワードを生成する必要があります。\n\n' +
+                     '手順:\n' +
+                     '1. メニュー「🚀 営業自動化」→「🔤 キーワード生成」を実行\n' +
+                     '2. その後「🏢 企業検索」を実行\n\n' +
+                     'キーワード生成を実行しますか？';
+      
+      const result = SpreadsheetApp.getUi().alert(
+        'キーワード生成が必要',
+        message,
+        SpreadsheetApp.getUi().ButtonSet.YES_NO
       );
-      return;
+      
+      if (result === SpreadsheetApp.getUi().Button.YES) {
+        // キーワード生成を実行
+        generateKeywords();
+        return;
+      } else {
+        return;
+      }
     }
     
     let totalCompanies = 0;

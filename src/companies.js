@@ -33,6 +33,15 @@ function executeCompanySearchFromCompanies() {
   
   try {
     console.log('🏢 企業検索を開始します...');
+    
+    // ユーザーに開始通知
+    SpreadsheetApp.getUi().alert(
+      '🔍 企業検索実行', 
+      'executeCompanySearchFromCompanies関数に到達しました！\n\n' +
+      '実際の検索処理を開始します。', 
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+    
     updateExecutionStatus('企業検索を開始します...');
     
     // システム初期化確認

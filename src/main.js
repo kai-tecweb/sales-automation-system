@@ -757,6 +757,8 @@ function initializeSheets() {
   Logger.log('システムの初期化が完了しました');
 }
 
+
+
 /**
  * 制御パネルシートの作成
  */
@@ -781,7 +783,7 @@ function createControlPanel(ss) {
     ['', ''],
     ['', ''],
     ['検索企業数上限', 20],
-    ['APIキー設定', '設定済み'],
+    ['APIキー設定', '確認中...'],
     ['', ''],
     ['', ''],
     ['実行状況表示', '']
@@ -805,6 +807,9 @@ function createControlPanel(ss) {
   
   // ダッシュボード作成
   createDashboard(sheet);
+  
+  // API設定状況を更新
+  updateControlPanelApiStatus(sheet);
 }
 
 /**
@@ -834,7 +839,34 @@ function createDashboard(sheet) {
     ['システム稼働日数', '=TODAY()-DATE(2024,1,1)']
   ];
   
-  sheet.getRange('E2', 1, dashboardData.length, 2).setValues(dashboardData);
+  sheet.getRange(2, 5, dashboardData.length, 2).setValues(dashboardData);
+}
+
+/**
+ * 制御パネルのAPI設定状況を更新
+ */
+function updateControlPanelApiStatus(sheet) {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    
+    const openaiKey = properties.getProperty('OPENAI_API_KEY');
+    const googleKey = properties.getProperty('GOOGLE_SEARCH_API_KEY');
+    const engineId = properties.getProperty('GOOGLE_SEARCH_ENGINE_ID');
+    
+    let statusText = '❌ 未設定';
+    if (openaiKey && googleKey && engineId) {
+      statusText = '✅ 設定済み';
+    } else if (openaiKey || googleKey || engineId) {
+      statusText = '⚠️ 一部設定済み';
+    }
+    
+    // APIキー設定行を更新（B12セル）
+    sheet.getRange('B12').setValue(statusText);
+    
+  } catch (error) {
+    console.error('制御パネルAPI設定状況更新エラー:', error);
+    sheet.getRange('B12').setValue('❌ エラー');
+  }
 }
 
 /**

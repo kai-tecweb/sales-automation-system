@@ -9,7 +9,8 @@ const SHEET_NAMES = {
   KEYWORDS: '生成キーワード',
   COMPANIES: '企業マスター',
   PROPOSALS: '提案メッセージ',
-  LOGS: '実行ログ'
+  LOGS: '実行ログ',
+  API_KEYS: 'APIキー管理'
 };
 
 const API_KEYS = {

@@ -1,0 +1,2245 @@
+/**
+ * 営業自動化システム メインメニューシステム
+ * 統合されたメニュー構造とライセンス管理
+ */
+
+function onOpen() {
+  try {
+    console.log('🚀 Creating role-based MAIN system menu...');
+    
+    // ユーザー権限に基づいてメニューを作成
+    createRoleBasedMenu();
+    
+  } catch (error) {
+    console.error('❌ Main menu creation error:', error);
+    
+    // 最小限のフォールバックメニュー
+    try {
+      SpreadsheetApp.getUi()
+        .createMenu('🆘 営業システム (エラー)')
+        .addItem('📊 状態確認', 'checkSystemStatus')
+        .addItem('🔄 メニュー再読み込み', 'reloadMenu')
+        .addToUi();
+    } catch (fallbackError) {
+      console.error('❌ Fallback menu failed:', fallbackError);
+    }
+  }
+}
+
+/**
+ * ユーザー権限に基づいたメニュー作成
+ */
+function createRoleBasedMenu() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    // 現在のユーザー情報を取得
+    let currentUser;
+    try {
+      currentUser = getCurrentUser();
+    } catch (error) {
+      // ユーザー管理システムが初期化されていない場合はゲストとして扱う
+      console.log('ユーザー管理システム未初期化 - ゲストモードで開始');
+      currentUser = { isLoggedIn: false, role: 'Guest' };
+    }
+    
+    const userRole = currentUser.role || 'Guest';
+    const isLoggedIn = currentUser.isLoggedIn || false;
+    
+    console.log(`[INFO] ユーザーロール: ${userRole}, ログイン状態: ${isLoggedIn}`);
+    
+    // メインメニュー開始
+    const mainMenu = ui.createMenu(`⚡ 営業自動化システム (${userRole})`);
+    
+    // 基本システム機能（全ユーザー共通）
+    mainMenu.addItem('📊 システム状態確認', 'checkSystemStatus');
+    mainMenu.addItem('📋 シート構造確認', 'checkExistingSheets');
+    
+    // API設定機能（全ユーザーアクセス可能）
+    mainMenu.addItem('🔑 APIキー設定', 'setApiKeys');
+    mainMenu.addItem('📋 API設定確認', 'checkApiKeys');
+    mainMenu.addItem('🧪 APIシート更新テスト', 'testUpdateApiKeySheet');
+    mainMenu.addItem('🔬 OpenAI APIシンプルテスト', 'testOpenAIAPISimple');
+    mainMenu.addItem('🔍 企業検索デバッグテスト', 'testCompanySearchDebug');
+    mainMenu.addItem('📋 キーワードシート確認', 'checkKeywordSheetStatus');
+    mainMenu.addItem('📊 全シート一覧', 'listAllSheets');
+    
+    // テスト関数追加
+    mainMenu.addSeparator();
+    mainMenu.addItem('🧪 メニューテスト', 'testMenuFunctionCall');
+    mainMenu.addItem('🔍 企業検索テスト（バッチ処理対応）', 'testCompanySearchReal');
+    
+    mainMenu.addSeparator();
+    
+    // キーワード生成機能
+    mainMenu.addItem('🔤 キーワード生成', 'generateKeywords');
+    mainMenu.addItem('🔤 シンプルキーワード生成', 'generateKeywordsSimple');
+    
+    // ログイン/ログアウト機能
+    if (isLoggedIn) {
+      mainMenu.addItem('👤 ユーザー状態', 'showCurrentUserStatus');
+      mainMenu.addItem('🚪 ログアウト', 'logoutUser');
+    } else {
+      mainMenu.addItem('🔐 ログイン', 'simpleLogin');
+    }
+    
+    mainMenu.addSeparator();
+    
+    // 権限別メニュー追加
+    if (userRole === 'Administrator') {
+      addAdministratorMenu(mainMenu, ui);
+    } else if (userRole === 'Standard') {
+      addStandardUserMenu(mainMenu, ui);
+    } else {
+      addGuestUserMenu(mainMenu, ui);
+    }
+    
+    // メニューを有効化
+    mainMenu.addToUi();
+    
+    console.log('✅ Role-based system menu created successfully');
+    
+    // 権限に応じたシート可視性制御
+    controlSheetVisibility(userRole);
+    
+    // システム起動通知
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      `営業自動化システム v2.0 - ${userRole}モード`, 
+      '🚀 システム起動完了', 
+      5
+    );
+    
+  } catch (error) {
+    console.error('❌ Role-based menu creation error:', error);
+    throw error;
+  }
+}
+
+/**
+ * 緊急企業検索実行（メニューが表示されない場合の対処）
+ */
+function forceCompanySearch() {
+  try {
+    console.log('🚨 緊急企業検索実行開始');
+    
+    // 直接バッチ処理を実行
+    testCompanySearchReal();
+    
+  } catch (error) {
+    console.error('❌ 緊急企業検索エラー:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', `緊急企業検索でエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * シンプル企業検索実行（すぐに使える）
+ */
+function runCompanySearch() {
+  try {
+    console.log('🔍 シンプル企業検索開始');
+    
+    SpreadsheetApp.getUi().alert(
+      '🔍 企業検索開始', 
+      '修正された設定で企業検索を開始します。\n\n改善点:\n• 除外ワード削減\n• スコア閾値25点に緩和\n• 検索結果15件に増加', 
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+    
+    // バッチ処理企業検索を実行
+    testCompanySearchReal();
+    
+  } catch (error) {
+    console.error('❌ シンプル企業検索エラー:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', `企業検索でエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 管理者用メニュー追加
+ */
+function addAdministratorMenu(mainMenu, ui) {
+  // 管理者は全機能にアクセス可能
+  mainMenu.addItem('🔧 基本シート作成', 'initializeBasicSheets');
+  
+  // ライセンス管理（管理者専用）
+  mainMenu.addSubMenu(ui.createMenu('📋 ライセンス管理')
+    .addItem('📈 ライセンス状況', 'showLicenseStatus')
+    .addItem('🔑 管理者認証', 'authenticateAdminFixed')
+    .addSeparator()
+    .addItem('💰 料金プラン確認', 'showPricingPlans')
+    .addItem('📊 料金シミュレーター', 'showPricingCalculator')
+    .addItem('⚙️ ライセンス設定', 'configureLicense')
+    .addSeparator()
+    .addItem('📅 使用開始設定', 'setLicenseStartDate')
+    .addItem('🔄 期限延長', 'extendLicense')
+    .addItem('🔓 システムロック解除', 'unlockSystem'));
+  
+  // API設定（管理者専用）
+  mainMenu.addSubMenu(ui.createMenu('🔐 API設定')
+    .addItem('🔧 APIキー設定', 'setApiKeys')
+    .addItem('📋 設定状況確認', 'checkApiKeys')
+    .addItem('🗑️ APIキー削除', 'clearApiKeys')
+    .addSeparator()
+    .addItem('🔌 API統合テスト', 'testAPIIntegration')
+    .addItem('📊 API使用量確認', 'checkAPIQuotaUsage')
+    .addItem('⚠️ API制限チェック', 'checkAPILimits'));
+  
+  // ユーザー管理（管理者専用）
+  mainMenu.addSubMenu(ui.createMenu('👥 ユーザー管理')
+    .addItem('🔧 ユーザー管理シート初期化', 'initializeUserManagementSheet')
+    .addItem('➕ 新規ユーザー作成', 'showCreateUserDialog')
+    .addItem('📋 ユーザーリスト表示', 'showUserListDialog')
+    .addSeparator()
+    .addItem('🔄 ユーザー切り替え', 'switchUserMode')
+    .addItem('🔍 権限確認', 'checkUserPermissions'));
+  
+  // 営業自動化機能（全機能）
+  mainMenu.addSubMenu(ui.createMenu('🚀 営業自動化')
+    .addItem('🔤 キーワード生成', 'generateKeywords')
+    .addItem('🏢 企業検索', 'executeCompanySearch')
+    .addItem('💬 提案メッセージ生成', 'generatePersonalizedProposals')
+    .addSeparator()
+    .addItem('⚡ 完全自動化実行', 'executeFullWorkflow'));
+  
+  // システム管理（管理者専用）
+  mainMenu.addSubMenu(ui.createMenu('⚙️ システム管理')
+    .addItem('🔄 メニュー更新', 'forceUpdateMenu')
+    .addItem('🏥 システム診断', 'performSystemDiagnostics')
+    .addItem('📊 システム情報', 'showSystemInfo')
+    .addSeparator()
+    .addItem('🧪 包括的システムテスト', 'runComprehensiveSystemTest')
+    .addItem('🔐 権限テスト実行', 'testUserPermissions')
+    .addItem('💊 システム健康チェック', 'performSystemHealthCheck')
+    .addSeparator()
+    .addItem('🔒 セキュリティテスト実行', 'runSecurityTests')
+    .addItem('📋 セキュリティ推奨事項', 'showSecurityRecommendations')
+    .addItem('🔍 セキュリティ監査ログ', 'generateSecurityAuditLog'));
+}
+
+/**
+ * スタンダードユーザー用メニュー追加
+ */
+function addStandardUserMenu(mainMenu, ui) {
+  // 営業自動化機能（基本機能のみ）
+  mainMenu.addSubMenu(ui.createMenu('🚀 営業自動化')
+    .addItem('🔤 キーワード生成', 'generateKeywords')
+    .addItem('🏢 企業検索', 'executeCompanySearch')
+    .addItem('💬 提案メッセージ生成', 'generatePersonalizedProposals')
+    .addSeparator()
+    .addItem('⚡ 基本自動化実行', 'executeFullWorkflow'));
+  
+  // データ閲覧機能
+  mainMenu.addSubMenu(ui.createMenu('📊 データ閲覧')
+    .addItem('📝 生成キーワード表示', 'viewKeywordData')
+    .addItem('🏢 企業データ表示', 'viewCompanyData')
+    .addItem('💬 提案メッセージ表示', 'viewProposalData'));
+  
+  // ライセンス状況確認（読み取り専用）
+  mainMenu.addItem('📋 ライセンス状況確認', 'showLicenseStatusReadOnly');
+}
+
+/**
+ * ゲストユーザー用メニュー追加
+ */
+function addGuestUserMenu(mainMenu, ui) {
+  // 閲覧機能のみ
+  mainMenu.addSubMenu(ui.createMenu('👀 データ閲覧 (読み取り専用)')
+    .addItem('📝 キーワードデータ表示', 'viewKeywordDataReadOnly')
+    .addItem('🏢 企業データ表示', 'viewCompanyDataReadOnly')
+    .addItem('💬 提案メッセージ表示', 'viewProposalDataReadOnly'));
+  
+  // システム情報確認（限定版）
+  mainMenu.addItem('ℹ️ システム情報確認', 'showSystemInfoLimited');
+}
+
+/**
+ * メニュー再読み込み
+ */
+function reloadMenu() {
+  try {
+    console.log('🔄 Reloading menu...');
+    onOpen();
+    SpreadsheetApp.getActiveSpreadsheet().toast('メニュー再読み込み完了', '🔄 更新されました', 3);
+  } catch (error) {
+    console.error('Menu reload error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', 'メニュー再読み込みでエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+// =================================
+// 機能実行関数（シンプル版）
+// ================================
+
+/**
+ * 基本ワークフロー実行（スタンダードユーザー用）
+ */
+function executeBasicWorkflow() {
+  try {
+    const permission = checkUserPermission('Standard');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。\nログインしてください。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    // 基本ワークフロー実行
+    const ui = SpreadsheetApp.getUi();
+    const response = ui.alert(
+      '基本ワークフロー実行',
+      'キーワード生成、企業検索、提案生成を順次実行します。\n実行しますか？',
+      ui.ButtonSet.YES_NO
+    );
+    
+    if (response === ui.Button.YES) {
+      ui.alert('実行開始', '基本ワークフローを開始します', ui.ButtonSet.OK);
+      
+      // 段階的実行
+      generateKeywordsWithPermissionCheck();
+      Utilities.sleep(2000); // 2秒待機
+      searchCompaniesWithPermissionCheck();
+      Utilities.sleep(2000); // 2秒待機
+      generateProposalsWithPermissionCheck();
+      
+      ui.alert('実行完了', '基本ワークフローが完了しました', ui.ButtonSet.OK);
+    }
+    
+  } catch (error) {
+    console.error('❌ 基本ワークフロー実行エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '基本ワークフロー実行中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+// =================================
+// 閲覧専用機能
+// =================================
+
+/**
+ * ライセンス状況確認（読み取り専用）
+ */
+function showLicenseStatusReadOnly() {
+  try {
+    // ライセンス情報の読み取り専用表示
+    if (typeof showLicenseStatus === 'function') {
+      showLicenseStatus();
+    } else {
+      SpreadsheetApp.getUi().alert('情報', 'ライセンス管理機能が見つかりません', SpreadsheetApp.getUi().ButtonSet.OK);
+    }
+  } catch (error) {
+    console.error('❌ ライセンス状況確認エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'ライセンス状況確認中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * システム情報確認（限定版）
+ */
+function showSystemInfoLimited() {
+  try {
+    const systemInfo = `
+🚀 営業自動化システム v2.0
+
+👤 現在のユーザー: ゲストユーザー
+🔑 権限レベル: 閲覧のみ
+⏰ アクセス時刻: ${new Date().toLocaleString()}
+
+📋 利用可能機能:
+- データ閲覧（読み取り専用）
+- システム情報確認
+
+💡 ヒント:
+ログインすると追加機能が利用できます
+    `;
+    
+    SpreadsheetApp.getUi().alert('システム情報', systemInfo, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ システム情報確認エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'システム情報確認中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+// =================================
+// シート可視性制御機能
+// =================================
+
+/**
+ * ユーザー権限に基づくシート可視性制御
+ */
+function controlSheetVisibility(userRole) {
+  try {
+    console.log(`🔍 シート可視性制御開始: ${userRole}`);
+    
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheets = spreadsheet.getSheets();
+    
+    sheets.forEach(sheet => {
+      const sheetName = sheet.getName();
+      
+      if (userRole === 'Administrator') {
+        // 管理者：すべてのシートを表示
+        sheet.showSheet();
+        console.log(`👁️ 管理者: ${sheetName} - 表示`);
+        
+      } else if (userRole === 'Standard') {
+        // スタンダードユーザー：管理系シート以外を表示
+        if (['ユーザー管理'].includes(sheetName)) {
+          sheet.hideSheet();
+          console.log(`🚫 スタンダード: ${sheetName} - 非表示`);
+        } else {
+          sheet.showSheet();
+          console.log(`👁️ スタンダード: ${sheetName} - 表示`);
+        }
+        
+      } else {
+        // ゲストユーザー：データシートのみ表示
+        if (['生成キーワード', '企業マスター', '提案メッセージ'].includes(sheetName)) {
+          sheet.showSheet();
+          console.log(`👁️ ゲスト: ${sheetName} - 表示`);
+        } else {
+          sheet.hideSheet();
+          console.log(`🚫 ゲスト: ${sheetName} - 非表示`);
+        }
+      }
+    });
+    
+    console.log('✅ シート可視性制御完了');
+    
+  } catch (error) {
+    console.error('❌ シート可視性制御エラー:', error);
+  }
+}
+
+/**
+ * ログイン時のシート表示更新
+ */
+function updateSheetVisibilityOnLogin(userRole) {
+  try {
+    controlSheetVisibility(userRole);
+    
+    // メニューも更新
+    createRoleBasedMenu();
+    
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      `シート表示を${userRole}モードに更新しました`, 
+      '🔄 表示更新完了', 
+      3
+    );
+    
+  } catch (error) {
+    console.error('❌ ログイン時シート更新エラー:', error);
+  }
+}
+
+// =================================
+// データ閲覧機能
+// =================================
+
+/**
+ * キーワードデータ表示（スタンダードユーザー用）
+ */
+function viewKeywordData() {
+  try {
+    const permission = checkUserPermission('Standard');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('生成キーワード');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', 'キーワードデータが見つかりません。\nまずキーワード生成を実行してください。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', 'キーワードデータがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする
+    SpreadsheetApp.setActiveSheet(sheet);
+    SpreadsheetApp.getUi().alert('📋 キーワードデータ', `生成されたキーワードデータを表示しました。\n総計: ${lastRow - 1}件のキーワード`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ キーワードデータ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'キーワードデータ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 企業データ表示（スタンダードユーザー用）
+ */
+function viewCompanyData() {
+  try {
+    const permission = checkUserPermission('Standard');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('企業マスター');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', '企業データが見つかりません。\nまず企業検索を実行してください。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', '企業データがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする
+    SpreadsheetApp.setActiveSheet(sheet);
+    SpreadsheetApp.getUi().alert('🏢 企業データ', `検索された企業データを表示しました。\n総計: ${lastRow - 1}件の企業`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ 企業データ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '企業データ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 提案データ表示（スタンダードユーザー用）
+ */
+function viewProposalData() {
+  try {
+    const permission = checkUserPermission('Standard');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('提案メッセージ');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', '提案データが見つかりません。\nまず提案生成を実行してください。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', '提案データがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする
+    SpreadsheetApp.setActiveSheet(sheet);
+    SpreadsheetApp.getUi().alert('💬 提案データ', `生成された提案メッセージを表示しました。\n総計: ${lastRow - 1}件の提案`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ 提案データ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '提案データ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * キーワードデータ表示（ゲストユーザー用・読み取り専用）
+ */
+function viewKeywordDataReadOnly() {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('生成キーワード');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', 'キーワードデータが見つかりません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', 'キーワードデータがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする（読み取り専用）
+    SpreadsheetApp.setActiveSheet(sheet);
+    
+    // ゲスト用：最新20件のみ表示推奨の警告
+    const displayCount = Math.min(lastRow - 1, 20);
+    SpreadsheetApp.getUi().alert(
+      '📋 キーワードデータ（読み取り専用）', 
+      `生成されたキーワードデータを表示しました。\n総計: ${lastRow - 1}件のキーワード（最新${displayCount}件を表示推奨）\n\n⚠️ ゲストユーザーのため編集はできません。`, 
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ キーワードデータ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'キーワードデータ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 企業データ表示（ゲストユーザー用・読み取り専用）
+ */
+function viewCompanyDataReadOnly() {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('企業マスター');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', '企業データが見つかりません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', '企業データがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする（読み取り専用）
+    SpreadsheetApp.setActiveSheet(sheet);
+    
+    // ゲスト用：最新20件のみ表示推奨の警告
+    const displayCount = Math.min(lastRow - 1, 20);
+    SpreadsheetApp.getUi().alert(
+      '🏢 企業データ（読み取り専用）', 
+      `検索された企業データを表示しました。\n総計: ${lastRow - 1}件の企業（最新${displayCount}件を表示推奨）\n\n⚠️ ゲストユーザーのため編集はできません。`, 
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ 企業データ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '企業データ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 提案データ表示（ゲストユーザー用・読み取り専用）
+ */
+function viewProposalDataReadOnly() {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('提案メッセージ');
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('データなし', '提案データが見つかりません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      SpreadsheetApp.getUi().alert('データなし', '提案データがありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // データをアクティブにする（読み取り専用）
+    SpreadsheetApp.setActiveSheet(sheet);
+    
+    // ゲスト用：最新20件のみ表示推奨の警告
+    const displayCount = Math.min(lastRow - 1, 20);
+    SpreadsheetApp.getUi().alert(
+      '💬 提案データ（読み取り専用）', 
+      `生成された提案メッセージを表示しました。\n総計: ${lastRow - 1}件の提案（最新${displayCount}件を表示推奨）\n\n⚠️ ゲストユーザーのため編集はできません。`, 
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ 提案データ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', '提案データ表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+// =================================
+// ユーザー管理UI機能
+// =================================
+
+/**
+ * 新規ユーザー作成ダイアログ表示
+ */
+function showCreateUserDialog() {
+  try {
+    // 管理者権限チェック
+    const permission = checkUserPermission('Administrator');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'ユーザー作成には管理者権限が必要です。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    const html = `
+      <div style="padding: 20px; font-family: Arial, sans-serif;">
+        <h2>👤 新規ユーザー作成</h2>
+        <form>
+          <div style="margin-bottom: 15px;">
+            <label for="username" style="display: block; margin-bottom: 5px;">ユーザー名:</label>
+            <input type="text" id="username" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+          <div style="margin-bottom: 15px;">
+            <label for="password" style="display: block; margin-bottom: 5px;">パスワード:</label>
+            <input type="password" id="password" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <small style="color: #666;">※8文字以上、英数字と記号を含む</small>
+          </div>
+          <div style="margin-bottom: 15px;">
+            <label for="role" style="display: block; margin-bottom: 5px;">権限レベル:</label>
+            <select id="role" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              <option value="Standard">スタンダードユーザー</option>
+              <option value="Administrator">管理者</option>
+            </select>
+          </div>
+          <div style="text-align: center;">
+            <button type="button" onclick="createNewUser()" style="background: #4285f4; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">作成</button>
+            <button type="button" onclick="google.script.host.close()" style="background: #ccc; color: black; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">キャンセル</button>
+          </div>
+        </form>
+        <div id="message" style="margin-top: 15px; padding: 10px; display: none;"></div>
+      </div>
+      
+      <script>
+        function createNewUser() {
+          const username = document.getElementById('username').value;
+          const password = document.getElementById('password').value;
+          const role = document.getElementById('role').value;
+          
+          if (!username || !password) {
+            showMessage('ユーザー名とパスワードを入力してください', 'error');
+            return;
+          }
+          
+          google.script.run
+            .withSuccessHandler(onCreateSuccess)
+            .withFailureHandler(onCreateFailure)
+            .createUser(username, password, role, 'システム管理者');
+        }
+        
+        function onCreateSuccess(result) {
+          if (result.success) {
+            showMessage('ユーザーの作成が完了しました', 'success');
+            setTimeout(() => {
+              google.script.host.close();
+            }, 2000);
+          } else {
+            showMessage(result.message || 'ユーザー作成に失敗しました', 'error');
+          }
+        }
+        
+        function onCreateFailure(error) {
+          showMessage('ユーザー作成中にエラーが発生しました', 'error');
+        }
+        
+        function showMessage(text, type) {
+          const messageDiv = document.getElementById('message');
+          messageDiv.textContent = text;
+          messageDiv.style.display = 'block';
+          messageDiv.style.backgroundColor = type === 'success' ? '#d4edda' : '#f8d7da';
+          messageDiv.style.color = type === 'success' ? '#155724' : '#721c24';
+          messageDiv.style.border = '1px solid ' + (type === 'success' ? '#c3e6cb' : '#f5c6cb');
+          messageDiv.style.borderRadius = '4px';
+        }
+      </script>
+    `;
+    
+    const htmlOutput = HtmlService.createHtmlOutput(html)
+      .setWidth(450)
+      .setHeight(400);
+    
+    SpreadsheetApp.getUi().showModalDialog(htmlOutput, '新規ユーザー作成');
+    
+  } catch (error) {
+    console.error('❌ ユーザー作成ダイアログ表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'ユーザー作成画面の表示に失敗しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * ユーザーリスト表示ダイアログ
+ */
+function showUserListDialog() {
+  try {
+    // 管理者権限チェック
+    const permission = checkUserPermission('Administrator');
+    if (!permission.hasPermission) {
+      SpreadsheetApp.getUi().alert(
+        '権限エラー', 
+        'ユーザーリスト表示には管理者権限が必要です。', 
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+    
+    const users = getUserList();
+    
+    let userListHtml = '';
+    if (users.length === 0) {
+      userListHtml = '<tr><td colspan="4" style="text-align: center;">ユーザーが登録されていません</td></tr>';
+    } else {
+      users.forEach(user => {
+        userListHtml += `
+          <tr>
+            <td>${user.username}</td>
+            <td>${user.role}</td>
+            <td>${user.createdDate ? new Date(user.createdDate).toLocaleDateString() : '不明'}</td>
+            <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : '未ログイン'}</td>
+          </tr>
+        `;
+      });
+    }
+    
+    const html = `
+      <div style="padding: 20px; font-family: Arial, sans-serif;">
+        <h2>👥 ユーザーリスト</h2>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+          <thead>
+            <tr style="background-color: #f5f5f5;">
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">ユーザー名</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">権限</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">作成日</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">最終ログイン</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${userListHtml}
+          </tbody>
+        </table>
+        <div style="text-align: center; margin-top: 20px;">
+          <button type="button" onclick="google.script.host.close()" style="background: #4285f4; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">閉じる</button>
+        </div>
+      </div>
+    `;
+    
+    const htmlOutput = HtmlService.createHtmlOutput(html)
+      .setWidth(600)
+      .setHeight(400);
+    
+    SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'ユーザーリスト');
+    
+  } catch (error) {
+    console.error('❌ ユーザーリスト表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', 'ユーザーリスト表示中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 強制メニュー更新（デバッグ用）
+ */
+function forceUpdateMenu() {
+  try {
+    console.log('🔄 Force updating menu...');
+    
+    // 既存のメニューをクリア
+    const ui = SpreadsheetApp.getUi();
+    
+    // 新しいメニューを作成
+    ui.createMenu('🚀 営業自動化システム (最新)')
+      .addItem('📋 システム状態確認', 'checkSystemStatus')
+      .addItem('🔧 基本シート作成', 'initializeBasicSheets')
+      .addSeparator()
+      .addSubMenu(ui.createMenu('🔐 ライセンス管理')
+        .addItem('📋 ライセンス状況', 'showLicenseStatus')
+        .addItem('👤 管理者認証', 'authenticateAdmin')
+        .addSeparator()
+        .addItem('💰 料金プラン確認', 'showPricingPlans')
+        .addItem('⚙️ ライセンス設定', 'configureLicense')
+        .addSeparator()
+        .addItem('📅 使用開始設定', 'setLicenseStartDate')
+        .addItem('🔄 期限延長', 'extendLicense')
+        .addItem('🔒 システムロック解除', 'unlockSystem'))
+      .addSubMenu(ui.createMenu('👥 ユーザー管理')
+        .addItem('🔄 ユーザー切り替え', 'switchUserMode')
+        .addItem('📊 権限確認', 'checkUserPermissions'))
+      .addSeparator()
+      .addItem('ℹ️ システム情報', 'showSystemInfo')
+      .addItem('🔄 メニュー再読み込み', 'forceUpdateMenu')
+      .addToUi();
+    
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      'メニュー強制更新完了', 
+      '🚀 最新メニューが適用されました', 
+      5
+    );
+    
+    console.log('✅ Force menu update completed');
+    
+  } catch (error) {
+    console.error('Force menu update error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', 'メニュー強制更新でエラーが発生しました: ' + error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 管理者認証（修正版） - メニューから呼び出し可能
+ */
+function authenticateAdminFixed() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    const response = ui.prompt(
+      '🔐 管理者認証',
+      '管理者パスワードを入力してください:\n\nパスワード: SalesAuto2024!',
+      ui.ButtonSet.OK_CANCEL
+    );
+    
+    if (response.getSelectedButton() === ui.Button.OK) {
+      const password = response.getResponseText();
+      
+      // ADMIN_PASSWORD = "SalesAuto2024!" (license-manager.jsで定義)
+      if (password === 'SalesAuto2024!') {
+        // 管理者モードを有効化
+        PropertiesService.getScriptProperties().setProperty('ADMIN_MODE', 'true');
+        
+        SpreadsheetApp.getActiveSpreadsheet().toast(
+          '管理者認証成功', 
+          '🟢 管理者機能が有効になりました', 
+          3
+        );
+        
+        ui.alert(
+          '✅ 認証成功',
+          '管理者モードが有効になりました。\n管理者専用機能が利用可能です。',
+          ui.ButtonSet.OK
+        );
+        
+        // ライセンス管理シートを表示
+        createLicenseManagementSheet();
+        
+        return true;
+        
+      } else {
+        ui.alert(
+          '❌ 認証失敗',
+          'パスワードが正しくありません。\n正しいパスワード: SalesAuto2024!',
+          ui.ButtonSet.OK
+        );
+        
+        return false;
+      }
+    }
+    
+    return false;
+    
+  } catch (error) {
+    console.error('Admin auth fixed error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', '管理者認証でエラーが発生しました: ' + error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);
+    return false;
+  }
+}
+
+/**
+ * システム状態確認
+ */
+function checkSystemStatus() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    let status = '📊 システム状態確認\n\n';
+    status += '✅ Google Apps Script: 動作中\n';
+    status += '✅ スプレッドシート: 接続済み\n';
+    status += '✅ メニューシステム: 正常\n\n';
+    
+    status += '📋 次のステップ:\n';
+    status += '1. ライセンス管理システム構築\n';
+    status += '2. ユーザー権限管理\n';
+    status += '3. 基本機能実装\n\n';
+    
+    status += `⏰ 確認時刻: ${new Date().toLocaleString('ja-JP')}`;
+    
+    ui.alert('システム状態', status, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('System status check error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', 'システム状態確認でエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 基本シート作成
+ */
+function initializeBasicSheets() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // 必要な基本シートを作成
+    const requiredSheets = [
+      '制御パネル',
+      'ライセンス管理', 
+      '実行ログ'
+    ];
+    
+    let created = 0;
+    for (const sheetName of requiredSheets) {
+      if (!ss.getSheetByName(sheetName)) {
+        ss.insertSheet(sheetName);
+        created++;
+      }
+    }
+    
+    let message = '🔧 基本シート作成完了\n\n';
+    message += `✅ 作成済みシート: ${created}個\n`;
+    message += `📊 総シート数: ${ss.getSheets().length}個\n\n`;
+    message += '次は「ライセンス管理」から設定を開始してください。';
+    
+    ui.alert('シート作成', message, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('Sheet initialization error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', 'シート作成でエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * システム情報表示
+ */
+function showSystemInfo() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    let info = '📋 営業自動化システム情報\n\n';
+    info += '🏷️ バージョン: v2.0 (開発中)\n';
+    info += '📅 最終更新: 2025年10月18日\n';
+    info += '🔧 ステータス: 基本構築段階\n\n';
+    
+    info += '📝 現在の段階:\n';
+    info += '1. ✅ コードベース構築\n';
+    info += '2. 🔄 メニューシステム確認中\n';
+    info += '3. ⏳ ライセンス管理 (次)\n';
+    info += '4. ⏳ ユーザー権限管理\n';
+    info += '5. ⏳ 基本機能実装\n\n';
+    
+    info += '🎯 目標: 完全自動化された営業支援システム';
+    
+    ui.alert('システム情報', info, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('System info error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', 'システム情報表示でエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * ライセンス状況表示（実装版）
+ */
+function showLicenseStatus() {
+  try {
+    // license-manager.js の関数を呼び出し
+    const licenseInfo = getLicenseInfo();
+    const ui = SpreadsheetApp.getUi();
+    
+    let status = '📋 ライセンス状況\n\n';
+    
+    // 管理者モード状況
+    status += `👤 管理者モード: ${licenseInfo.adminMode ? '� 有効' : '🔴 無効'}\n`;
+    
+    // ライセンス期限状況
+    if (licenseInfo.startDate) {
+      status += `📅 ライセンス開始日: ${formatDate(licenseInfo.startDate)}\n`;
+      status += `📅 ライセンス期限: ${licenseInfo.expiryDate ? formatDate(licenseInfo.expiryDate) : '未計算'}\n`;
+      status += `⏰ 残り日数: ${licenseInfo.remainingDays !== null ? licenseInfo.remainingDays + '営業日' : '未計算'}\n`;
+      status += `🔓 システム状態: ${licenseInfo.systemLocked ? '🔒 ロック中' : '✅ 利用可能'}\n\n`;
+    } else {
+      status += '📅 ライセンス: 未設定\n';
+      status += '💡 「📅 使用開始設定」からライセンスを開始してください\n\n';
+    }
+    
+    // 料金プラン情報
+    status += '💰 料金プラン情報:\n';
+    status += '• ベーシック: ¥500/月 (企業検索10社/日)\n';
+    status += '• スタンダード: ¥1,500/月 (企業検索50社/日 + AI)\n';
+    status += '• プロフェッショナル: ¥5,500/月 (企業検索100社/日 + AI + 2アカウント)\n';
+    status += '• エンタープライズ: ¥17,500/月 (企業検索500社/日 + AI + 5アカウント)\n\n';
+    
+    status += '次の操作:\n';
+    status += '• OK: ライセンス管理シートを開く\n';
+    status += '• キャンセル: このダイアログを閉じる';
+    
+    const result = ui.alert('ライセンス状況', status, ui.ButtonSet.OK_CANCEL);
+    
+    if (result === ui.Button.OK) {
+      createLicenseManagementSheet();
+    }
+    
+  } catch (error) {
+    console.error('License status error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', 'ライセンス状況確認でエラーが発生しました: ' + error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * ProspectFlow 料金プラン確認（v4.0 統一版）
+ */
+function showPricingPlans() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    let plans = '💰 ProspectFlow 営業自動化システム 料金プラン\n\n';
+    
+    // トライアル版
+    plans += '🆓 トライアル（10営業日無料）\n';
+    plans += '• 期間: 10営業日限定\n';
+    plans += '• 企業検索: 5社/日\n';
+    plans += '• AI機能: ✅ 利用可能\n';
+    plans += '• 月額: ¥0 + API実費約¥50\n\n';
+    
+    // ベーシック版
+    plans += '🥉 ベーシック（¥500/月）\n';
+    plans += '• 企業検索: 10社/日\n';
+    plans += '• AI機能: ❌ 利用不可\n';
+    plans += '• アカウント: 1名\n';
+    plans += '• 合計月額: ¥500（API料金なし）\n\n';
+    
+    // スタンダード版
+    plans += '🥈 スタンダード（¥1,500/月）\n';
+    plans += '• 企業検索: 50社/日\n';
+    plans += '• AI機能: ✅ 利用可能\n';
+    plans += '• アカウント: 1名\n';
+    plans += '• 合計月額: ¥3,500（API込み）\n\n';
+    
+    // プロフェッショナル版
+    plans += '🥇 プロフェッショナル（¥5,500/月）\n';
+    plans += '• 企業検索: 100社/日\n';
+    plans += '• AI機能: ✅ 利用可能\n';
+    plans += '• アカウント: 2名\n';
+    plans += '• 合計月額: ¥11,500（API込み）\n\n';
+    
+    // エンタープライズ版
+    plans += '💎 エンタープライズ（¥17,500/月）\n';
+    plans += '• 企業検索: 500社/日\n';
+    plans += '• AI機能: ✅ 利用可能\n';
+    plans += '• アカウント: 5名\n';
+    plans += '• 合計月額: ¥47,500（API込み）\n\n';
+    
+    // 特徴説明
+    plans += '� 特徴:\n';
+    plans += '• トライアル: 全機能お試し可能\n';
+    plans += '• ベーシック: 手動入力・基本テンプレート\n';
+    plans += '• その他: AI キーワード・提案生成\n\n';
+    
+    plans += '🎯 まずは10営業日無料トライアルから！';
+    
+    ui.alert('ProspectFlow 料金プラン', plans, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('Pricing plans error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', '料金プラン確認でエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 料金シミュレーター
+ */
+function showPricingCalculator() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    // 企業数の入力
+    const companiesResponse = ui.prompt(
+      '📊 料金シミュレーター',
+      '1日あたりの企業検索数を入力してください（例: 50）:',
+      ui.ButtonSet.OK_CANCEL
+    );
+    
+    if (companiesResponse.getSelectedButton() !== ui.Button.OK) {
+      return;
+    }
+    
+    const companiesPerDay = parseInt(companiesResponse.getResponseText());
+    if (isNaN(companiesPerDay) || companiesPerDay <= 0) {
+      ui.alert('エラー', '有効な数値を入力してください', ui.ButtonSet.OK);
+      return;
+    }
+    
+    // AI機能の選択
+    const aiResponse = ui.alert(
+      '💡 AI機能選択',
+      'AI機能（キーワード・提案生成）を使用しますか？\n\n' +
+      'YES: AI強化版（約2.5円/企業）\n' +
+      'NO: 基本版（約0.1円/企業）',
+      ui.ButtonSet.YES_NO_CANCEL
+    );
+    
+    if (aiResponse === ui.Button.CANCEL) {
+      return;
+    }
+    
+    const useAI = aiResponse === ui.Button.YES;
+    
+    // 料金計算
+    const result = calculatePricingSimulation(companiesPerDay, useAI);
+    
+    // 結果表示
+    let simulationResult = `📊 ProspectFlow 料金シミュレーション結果\n\n`;
+    simulationResult += `📈 条件:\n`;
+    simulationResult += `• 企業検索: ${companiesPerDay}社/日\n`;
+    simulationResult += `• AI機能: ${useAI ? 'あり（キーワード・提案生成）' : 'なし（手動入力）'}\n\n`;
+    
+    simulationResult += `💰 推奨プラン:\n\n`;
+    
+    result.plans.forEach(plan => {
+      if (companiesPerDay <= plan.dailyLimit || plan.dailyLimit === 0) {
+        // ベーシックプランでAI機能を希望する場合の特別処理
+        if (plan.name === 'ベーシック' && useAI) {
+          simulationResult += `${plan.icon} ${plan.name}\n`;
+          simulationResult += `• ❌ AI機能非対応プランです\n`;
+          simulationResult += `• スタンダードプラン以上をご検討ください\n\n`;
+        } else {
+          simulationResult += `${plan.icon} ${plan.name}\n`;
+          simulationResult += `• システム利用料: ¥${plan.license.toLocaleString()}/月\n`;
+          
+          if (plan.name === 'トライアル') {
+            simulationResult += `• 期間: ${plan.period}\n`;
+            simulationResult += `• API料金: ¥${plan.apiCost}/期間\n`;
+          } else {
+            simulationResult += `• API料金: ¥${plan.apiCost.toLocaleString()}/月\n`;
+          }
+          
+          if (typeof plan.totalCost === 'number') {
+            simulationResult += `• 合計: ¥${plan.totalCost.toLocaleString()}/月\n`;
+          }
+          
+          if (plan.users > 1) {
+            simulationResult += `• アカウント: ${plan.users}名まで\n`;
+          }
+          simulationResult += `\n`;
+        }
+      }
+    });
+    
+    simulationResult += `💡 ProspectFlow のポイント:\n`;
+    simulationResult += `• トライアル: 全機能10営業日無料体験\n`;
+    simulationResult += `• ベーシック: AI機能なし、手動運用向け\n`;
+    simulationResult += `• スタンダード以上: AI自動化機能フル活用\n`;
+    simulationResult += `• まずは無料トライアルから始めましょう！`;
+    
+    ui.alert('料金シミュレーション', simulationResult, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('Pricing calculator error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', '料金シミュレーターでエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * ProspectFlow 料金計算ロジック
+ */
+function calculatePricingSimulation(companiesPerDay, useAI) {
+  // ProspectFlow 料金体系に基づく計算
+  let apiCostPerCompany = 0;
+  let monthlyApiCost = 0;
+  
+  if (useAI) {
+    // AI機能使用時のAPI料金（1社あたり約¥40）
+    apiCostPerCompany = 40;
+    monthlyApiCost = Math.ceil(companiesPerDay * apiCostPerCompany * 20); // 営業日ベース
+  }
+  
+  const plans = [
+    {
+      name: 'トライアル',
+      icon: '🆓',
+      license: 0,
+      dailyLimit: 5,
+      users: 1,
+      apiCost: useAI ? 50 : 0, // 10営業日での概算
+      totalCost: 0,
+      period: '10営業日限定'
+    },
+    {
+      name: 'ベーシック',
+      icon: '🥉',
+      license: 500,
+      dailyLimit: 10,
+      users: 1,
+      apiCost: 0, // AI機能なしのため
+      totalCost: 0,
+      hasAI: false
+    },
+    {
+      name: 'スタンダード',
+      icon: '🥈',
+      license: 1500,
+      dailyLimit: 50,
+      users: 1,
+      apiCost: useAI && companiesPerDay <= 50 ? 2000 : 0, // 最大想定API料金
+      totalCost: 0,
+      hasAI: true
+    },
+    {
+      name: 'プロフェッショナル',
+      icon: '🥇',
+      license: 5500,
+      dailyLimit: 100,
+      users: 2,
+      apiCost: useAI && companiesPerDay <= 100 ? 6000 : 0, // 最大想定API料金
+      totalCost: 0,
+      hasAI: true
+    },
+    {
+      name: 'エンタープライズ',
+      icon: '💎',
+      license: 17500,
+      dailyLimit: 500,
+      users: 5,
+      apiCost: useAI && companiesPerDay <= 500 ? 30000 : 0, // 最大想定API料金
+      totalCost: 0,
+      hasAI: true
+    }
+  ];
+  
+  // 合計料金計算
+  plans.forEach(plan => {
+    if (plan.name === 'ベーシック' && useAI) {
+      // ベーシックプランではAI機能が使用できない
+      plan.totalCost = 'AI機能非対応';
+    } else {
+      plan.totalCost = plan.license + plan.apiCost;
+    }
+  });
+  
+  return {
+    plans: plans,
+    conditions: {
+      companiesPerDay: companiesPerDay,
+      useAI: useAI,
+      apiCostPerCompany: apiCostPerCompany,
+      monthlyApiCost: monthlyApiCost
+    }
+  };
+}
+
+/**
+ * 管理者認証（実装版）
+ */
+function authenticateAdmin() {
+  try {
+    // license-manager.js の authenticateAdmin() 関数を直接呼び出し
+    callLicenseManagerAuth();
+    
+  } catch (error) {
+    console.error('Admin auth error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', '管理者認証でエラーが発生しました: ' + error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * ライセンス管理の認証関数を呼び出し
+ */
+function callLicenseManagerAuth() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.prompt(
+    '🔐 管理者認証',
+    '管理者パスワードを入力してください:\n\nパスワード: SalesAuto2024!',
+    ui.ButtonSet.OK_CANCEL
+  );
+  
+  if (response.getSelectedButton() === ui.Button.OK) {
+    const password = response.getResponseText();
+    
+    if (password === 'SalesAuto2024!') {
+      // 管理者モードを有効化
+      PropertiesService.getScriptProperties().setProperty('ADMIN_MODE', 'true');
+      
+      SpreadsheetApp.getActiveSpreadsheet().toast(
+        '管理者認証成功', 
+        '🟢 管理者機能が有効になりました', 
+        3
+      );
+      
+      ui.alert(
+        '✅ 認証成功',
+        '管理者モードが有効になりました。\n管理者専用機能が利用可能です。',
+        ui.ButtonSet.OK
+      );
+      
+      // ライセンス管理シートを表示
+      createLicenseManagementSheet();
+      
+      return true;
+    } else {
+      ui.alert(
+        '❌ 認証失敗',
+        'パスワードが正しくありません。',
+        ui.ButtonSet.OK
+      );
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
+ * ライセンス設定（実装版）
+ */
+function configureLicense() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    const licenseInfo = getLicenseInfo();
+    
+    // 管理者権限チェック
+    if (!licenseInfo.adminMode) {
+      ui.alert(
+        '🔒 権限エラー',
+        'ライセンス設定は管理者専用機能です。\n先に「👤 管理者認証」を行ってください。',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+    
+    let configMenu = '⚙️ ライセンス設定メニュー\n\n';
+    configMenu += '利用可能な操作:\n';
+    configMenu += '• はい: 使用開始日設定\n';
+    configMenu += '• いいえ: ライセンス期限延長\n';
+    configMenu += '• キャンセル: システムロック解除\n\n';
+    
+    if (licenseInfo.startDate) {
+      configMenu += `現在の設定:\n`;
+      configMenu += `• 開始日: ${formatDate(licenseInfo.startDate)}\n`;
+      configMenu += `• 期限: ${licenseInfo.expiryDate ? formatDate(licenseInfo.expiryDate) : '未計算'}\n`;
+      configMenu += `• 残り: ${licenseInfo.remainingDays}営業日`;
+    } else {
+      configMenu += '現在の設定: ライセンス未設定';
+    }
+    
+    const result = ui.alert('ライセンス設定', configMenu, ui.ButtonSet.YES_NO_CANCEL);
+    
+    if (result === ui.Button.YES) {
+      setLicenseStartDate();
+    } else if (result === ui.Button.NO) {
+      extendLicense();
+    } else if (result === ui.Button.CANCEL) {
+      unlockSystem();
+    }
+    
+  } catch (error) {
+    console.error('License config error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', 'ライセンス設定でエラーが発生しました: ' + error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * ユーザー切り替え（仮実装）
+ */
+function switchUserMode() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    ui.alert('ユーザー切り替え', '🔧 開発段階: ユーザー切り替え機能実装前\n\n次のステップでユーザー権限管理システムを構築します。', ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('User switch error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', 'ユーザー切り替えでエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 権限確認（仮実装）
+ */
+function checkUserPermissions() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    let perms = '📊 現在の権限状況\n\n';
+    perms += '👤 ユーザータイプ: 開発者\n';
+    perms += '💰 プラン: 開発モード\n';
+    perms += '🔧 権限レベル: 全機能アクセス\n\n';
+    perms += '💡 次のステップ: ユーザー権限管理システム構築';
+    
+    ui.alert('権限確認', perms, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('User permissions error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', '権限確認でエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * システム診断機能
+ */
+function performSystemDiagnostics() {
+  const ui = SpreadsheetApp.getUi();
+  
+  try {
+    let diagnostics = '【システム診断結果】\n\n';
+    
+    // 1. APIキー確認
+    const apiValidation = validateApiKeys();
+    diagnostics += '🔑 APIキー設定:\n';
+    diagnostics += '  OpenAI: ' + (apiValidation.openaiKey ? '✅' : '❌') + '\n';
+    diagnostics += '  Google Search: ' + (apiValidation.googleKey ? '✅' : '❌') + '\n';
+    diagnostics += '  Search Engine ID: ' + (apiValidation.engineId ? '✅' : '❌') + '\n\n';
+    
+    // 2. ライセンス状況確認
+    const licenseInfo = getLicenseInfo();
+    diagnostics += '📋 ライセンス状況:\n';
+    diagnostics += '  管理者モード: ' + (licenseInfo.isAdminMode ? '✅ 有効' : '❌ 無効') + '\n';
+    diagnostics += '  ライセンス: ' + (licenseInfo.isLicenseSet ? '✅ 設定済み' : '❌ 未設定') + '\n\n';
+    
+    // 3. スプレッドシート確認
+    const sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+    diagnostics += '📊 スプレッドシート:\n';
+    diagnostics += '  シート数: ' + sheets.length + '\n';
+    diagnostics += '  利用可能: ✅\n\n';
+    
+    // 4. 全体状況
+    const allGood = apiValidation.allSet && licenseInfo.isAdminMode;
+    diagnostics += '🎯 総合状況: ' + (allGood ? '✅ 正常' : '⚠️ 要設定') + '\n\n';
+    
+    if (!allGood) {
+      diagnostics += '📝 推奨アクション:\n';
+      if (!apiValidation.allSet) {
+        diagnostics += '  • APIキーを設定してください\n';
+      }
+      if (!licenseInfo.isAdminMode) {
+        diagnostics += '  • 管理者認証を行ってください\n';
+      }
+    }
+    
+    ui.alert('システム診断', diagnostics, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    Logger.log('システム診断エラー: ' + error.toString());
+    ui.alert('診断エラー', 'システム診断中にエラーが発生しました: ' + error.toString(), ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * システムロック解除
+ */
+function unlockSystem() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    // 管理者権限チェック
+    const licenseInfo = getLicenseInfo();
+    if (!licenseInfo.adminMode) {
+      ui.alert(
+        '🔒 権限エラー',
+        'システムロック解除は管理者専用機能です。\n先に「👤 管理者認証」を行ってください。',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+    
+    const result = ui.alert(
+      '🔓 システムロック解除',
+      'システムロックを解除しますか？\n\n注意: この操作はライセンス期限に関係なく、\nシステムの全機能を有効にします。',
+      ui.ButtonSet.YES_NO
+    );
+    
+    if (result === ui.Button.YES) {
+      // システムロックを解除
+      PropertiesService.getScriptProperties().setProperty('SYSTEM_LOCKED', 'false');
+      
+      ui.alert(
+        '✅ ロック解除完了',
+        'システムロックが解除されました。\n全機能が利用可能になりました。',
+        ui.ButtonSet.OK
+      );
+      
+      SpreadsheetApp.getActiveSpreadsheet().toast(
+        'システムロック解除完了', 
+        '🔓 全機能が利用可能になりました', 
+        3
+      );
+    }
+    
+  } catch (error) {
+    console.error('Unlock system error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', 'システムロック解除でエラーが発生しました: ' + error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 4. 企業検索テスト（バッチ処理対応版）
+ */
+function testCompanySearchReal() {
+  try {
+    console.log('🧪 本格企業検索テスト開始');
+    
+    const ui = SpreadsheetApp.getUi();
+    
+    // APIキー確認
+    const searchKey = PropertiesService.getScriptProperties().getProperty('GOOGLE_SEARCH_API_KEY');
+    const engineId = PropertiesService.getScriptProperties().getProperty('GOOGLE_SEARCH_ENGINE_ID');
+    
+    if (!searchKey || !engineId) {
+      ui.alert('❌ エラー', 'Google Search APIキーまたは検索エンジンIDが設定されていません。\n先に「2️⃣ APIキー設定テスト」を実行してください。', ui.ButtonSet.OK);
+      return;
+    }
+    
+    // キーワード確認
+    const keywordSheet = getSafeSheet(SHEET_NAMES.KEYWORDS);
+    const keywordData = keywordSheet.getDataRange().getValues();
+    
+    if (keywordData.length <= 1) {
+      ui.alert('❌ エラー', 'キーワードが生成されていません。\n先に「3️⃣ キーワード生成テスト」を実行してください。', ui.ButtonSet.OK);
+      return;
+    }
+    
+    // 検索対象キーワードを選択
+    const searchKeywords = [];
+    for (let i = 1; i < keywordData.length; i++) {
+      if (keywordData[i][0] && keywordData[i][0].toString().trim() !== '') {
+        searchKeywords.push(keywordData[i][0]);
+      }
+    }
+    
+    // バッチ処理設定
+    const MAX_EXECUTION_TIME = 5.5; // 分
+    const AVERAGE_TIME_PER_KEYWORD = 6; // 秒
+    const maxKeywordsPerBatch = Math.floor((MAX_EXECUTION_TIME * 60) / AVERAGE_TIME_PER_KEYWORD);
+    
+    // バッチ処理状態の確認
+    const batchStatusKey = 'BATCH_SEARCH_STATUS';
+    const batchStatus = JSON.parse(PropertiesService.getScriptProperties().getProperty(batchStatusKey) || '{"completed": 0, "total": 0}');
+    
+    let processedCount = batchStatus.completed || 0;
+    const remainingKeywords = searchKeywords.length - processedCount;
+    
+    if (remainingKeywords <= 0) {
+      ui.alert('✅ 完了', '全てのキーワード処理が完了しています！', ui.ButtonSet.OK);
+      PropertiesService.getScriptProperties().deleteProperty(batchStatusKey);
+      return;
+    }
+    
+    const currentBatchSize = Math.min(maxKeywordsPerBatch, remainingKeywords);
+    const estimatedCost = Math.ceil(currentBatchSize * 1.5);
+    const estimatedMinutes = Math.ceil(currentBatchSize * 1.8);
+    
+    const confirmMessage = `🔍 バッチ処理状況\n` +
+      `• 進捗: ${processedCount}/${searchKeywords.length} 完了済み\n` +
+      `• 今回処理: ${currentBatchSize}個のキーワード\n` +
+      `• 残り: ${remainingKeywords}個\n\n` +
+      `💰 予想API料金: 約${estimatedCost}円\n` +
+      `⏱️ 予想処理時間: 約${estimatedMinutes}分\n\n` +
+      `実行しますか？`;
+    
+    const response = ui.alert('🔍 企業検索バッチ実行', confirmMessage, ui.ButtonSet.YES_NO);
+    
+    if (response !== ui.Button.YES) {
+      ui.alert('キャンセル', '企業検索をキャンセルしました。', ui.ButtonSet.OK);
+      return;
+    }
+    
+    // 企業マスターシート準備
+    const companySheet = getSafeSheet(SHEET_NAMES.COMPANIES);
+    const companyHeaders = [
+      '企業名', 'ウェブサイト', '業界', '企業規模', '所在地', '説明',
+      'マッチ度スコア', '発見キーワード', '最終更新日', '連絡状況', '備考',
+      '事業者区分', '屋号・商号', '代表者名', '抽出信頼度', '設立日', '資本金'
+    ];
+    
+    // 初回実行時のみヘッダーを設定
+    if (companySheet.getLastRow() <= 1) {
+      companySheet.clear();
+      companySheet.getRange(1, 1, 1, companyHeaders.length).setValues([companyHeaders]);
+      companySheet.getRange(1, 1, 1, companyHeaders.length).setFontWeight('bold').setBackground('#e8f5e8');
+    }
+    
+    // バッチ処理実行
+    const result = executeBatchCompanySearch(searchKeywords, searchKey, engineId, companySheet, companyHeaders, maxKeywordsPerBatch);
+    
+    ui.alert('✅ 処理完了', result.message, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ 企業検索テストエラー:', error);
+    SpreadsheetApp.getUi().alert(
+      '❌ テスト4失敗',
+      `企業検索テストでエラーが発生しました:\n\n${error.message}\n\nAPI接続やキー設定を確認してください。`,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * バッチ処理でキーワードを実行時間制限内で処理
+ */
+function executeBatchCompanySearch(searchKeywords, searchKey, engineId, companySheet, companyHeaders, maxKeywordsPerBatch) {
+  const startTime = Date.now();
+  const MAX_EXECUTION_TIME = 5.5 * 60 * 1000; // 5.5分をミリ秒に変換
+  
+  // バッチ処理状態の確認
+  const batchStatusKey = 'BATCH_SEARCH_STATUS';
+  const batchStatus = JSON.parse(PropertiesService.getScriptProperties().getProperty(batchStatusKey) || '{"completed": 0, "total": 0}');
+  
+  let processedCount = batchStatus.completed || 0;
+  
+  if (processedCount === 0) {
+    // 新規実行
+    batchStatus.total = searchKeywords.length;
+    PropertiesService.getScriptProperties().setProperty(batchStatusKey, JSON.stringify(batchStatus));
+  }
+  
+  // 残りのキーワードを取得
+  const remainingKeywords = searchKeywords.slice(processedCount);
+  const currentBatchSize = Math.min(maxKeywordsPerBatch, remainingKeywords.length);
+  const currentBatch = remainingKeywords.slice(0, currentBatchSize);
+  
+  if (currentBatch.length === 0) {
+    // 全て完了済み
+    PropertiesService.getScriptProperties().deleteProperty(batchStatusKey);
+    return {
+      message: '全てのキーワード処理が完了しています！',
+      isComplete: true
+    };
+  }
+  
+  console.log(`バッチ処理: ${currentBatch.length}個のキーワードを処理中...`);
+  
+  // 実際の検索処理を実行
+  const searchResult = performCompanySearchBatch(currentBatch, searchKey, engineId);
+  
+  // 結果をシートに書き込み
+  if (searchResult.companies && searchResult.companies.length > 0) {
+    const nextRow = companySheet.getLastRow() + 1;
+    const companyData = searchResult.companies.map(company => [
+      company.name || '',
+      company.website || '',
+      company.industry || '',
+      company.size || '',
+      company.location || '',
+      company.description || '',
+      company.score || 0,
+      company.keyword || '',
+      new Date(),
+      '',
+      '',
+      company.businessType || '',
+      company.tradeName || '',
+      company.representative || '',
+      company.confidence || 0,
+      company.established || '',
+      company.capital || ''
+    ]);
+    
+    companySheet.getRange(nextRow, 1, companyData.length, companyHeaders.length).setValues(companyData);
+  }
+  
+  // 進捗を更新
+  processedCount += currentBatch.length;
+  batchStatus.completed = processedCount;
+  PropertiesService.getScriptProperties().setProperty(batchStatusKey, JSON.stringify(batchStatus));
+  
+  // 完了チェック
+  const isComplete = processedCount >= searchKeywords.length;
+  if (isComplete) {
+    PropertiesService.getScriptProperties().deleteProperty(batchStatusKey);
+    return {
+      message: `全ての処理が完了しました！\n\n• 処理キーワード: ${processedCount}個\n• 発見企業数: ${searchResult.companies ? searchResult.companies.length : 0}社`,
+      isComplete: true
+    };
+  } else {
+    const remaining = searchKeywords.length - processedCount;
+    return {
+      message: `バッチ処理完了！\n\n• 処理済み: ${processedCount}/${searchKeywords.length}個\n• 発見企業数: ${searchResult.companies ? searchResult.companies.length : 0}社\n• 残り: ${remaining}個\n\n残りのキーワードがあります。再度実行してください。`,
+      isComplete: false
+    };
+  }
+}
+
+/**
+ * 実際のバッチ企業検索処理
+ */
+function performCompanySearchBatch(keywords, searchKey, engineId) {
+  const companies = [];
+  let processedCount = 0;
+  
+  for (const keyword of keywords) {
+    try {
+      SpreadsheetApp.getActiveSpreadsheet().toast(`「${keyword}」で検索中...`, '🔍 企業検索', 3);
+      
+      // Google Custom Search API呼び出し
+      const searchResults = performGoogleSearchSimple(keyword, searchKey, engineId);
+      
+      if (searchResults && searchResults.items) {
+        for (const item of searchResults.items) {
+          // 企業情報を解析・スコアリング
+          const companyInfo = analyzeSearchResultSimple(item, keyword);
+          if (companyInfo && companyInfo.score >= 25) { // 閾値を25に大幅緩和
+            // 厳密後処理フィルタリング適用（緩和版）
+            // デバッグ用：後処理フィルタを一時的に緩くする
+            const passesFilter = true; // strictPostProcessFilter(companyInfo); // 一時的に全て通す
+            
+            if (passesFilter) {
+              // 重複チェック
+              const isDuplicate = companies.some(existing => 
+                existing.website === companyInfo.website || existing.name === companyInfo.name
+              );
+              
+              if (!isDuplicate) {
+                companies.push(companyInfo);
+              }
+            }
+          }
+        }
+      }
+      
+      processedCount++;
+      
+      // レート制限対策（2秒待機）
+      Utilities.sleep(2000);
+      
+      // 進捗更新
+      SpreadsheetApp.getActiveSpreadsheet().toast(
+        `進捗: ${processedCount}/${keywords.length} (${Math.round((processedCount / keywords.length) * 100)}%)`, 
+        '🔍 企業検索中', 
+        2
+      );
+      
+    } catch (error) {
+      console.error(`キーワード「${keyword}」の検索でエラー:`, error);
+      continue;
+    }
+  }
+  
+  return { companies: companies, processed: processedCount };
+}
+
+/**
+ * シンプルなGoogle検索実行
+ */
+function performGoogleSearchSimple(keyword, searchKey, engineId) {
+  const query = encodeURIComponent(`${keyword} 会社 企業 -wikipedia -facebook -twitter -linkedin`);
+  const url = `https://www.googleapis.com/customsearch/v1?key=${searchKey}&cx=${engineId}&q=${query}&num=15`;
+  
+  const response = UrlFetchApp.fetch(url, { method: 'GET' });
+  
+  if (response.getResponseCode() !== 200) {
+    throw new Error(`Google Search API Error: ${response.getResponseCode()}`);
+  }
+  
+  return JSON.parse(response.getContentText());
+}
+
+/**
+ * シンプルな検索結果解析（Phase 2: PDF・政府サイト除外強化）
+ */
+function analyzeSearchResultSimple(item, keyword) {
+  // Phase 2: 結果除外判定
+  if (shouldExcludeResult(item.title, item.snippet, item.link)) {
+    return null;
+  }
+  
+  // 基本的な企業名抽出（改良版 + Phase 3対応）
+  let companyName = extractCompanyNameEnhanced(item.title, item.snippet, item.link);
+  
+  // 無効なパターンを除外
+  if (!companyName || isInvalidCompanyName(companyName)) {
+    return null;
+  }
+  
+  // 業界推定
+  const industry = estimateIndustry(item.snippet, item.title);
+  
+  // 基本スコア計算
+  let score = 25; // 基準点を大幅緩和（企業発見数優先）
+  
+  // スコアリング要素
+  if (item.title.includes('株式会社') || item.title.includes('有限会社')) score += 15;
+  if (item.snippet.includes('会社概要') || item.snippet.includes('企業情報')) score += 10;
+  if (item.link.includes('.co.jp')) score += 10;
+  if (item.snippet.includes(keyword)) score += 5;
+  
+  // 事業者区分判定
+  const businessType = determineBusinessType(item.title, item.snippet);
+  
+  // Phase 4: 個人事業主の詳細抽出
+  let tradeName = '';
+  let representative = '';
+  let confidence = score >= 70 ? 'High' : score >= 25 ? 'Medium' : 'Low'; // 閾値を25に調整
+  
+  if (businessType === '個人事業主') {
+    const details = extractIndividualBusinessDetails(item.title, item.snippet, item.link);
+    tradeName = details.tradeName;
+    representative = details.representative;
+    confidence = details.confidence > 0 ? 'High' : confidence;
+    score += details.confidence; // 詳細情報があると信頼度アップ
+  }
+  
+  return {
+    name: companyName,
+    website: item.link,
+    industry: industry,
+    size: estimateCompanySize(item.title, item.snippet, item.link), // 強化された企業規模判定
+    location: extractLocation(item.snippet),
+    description: cleanDescription(item.snippet),
+    score: Math.min(score, 100),
+    keyword: keyword,
+    businessType: businessType,
+    tradeName: tradeName,
+    representative: representative,
+    confidence: confidence
+  };
+}
+
+/**
+ * 企業規模判定機能（強化版）
+ */
+function estimateCompanySize(title, snippet, url) {
+  const fullText = title + ' ' + snippet;
+  
+  // 大企業の明確な指標
+  const largeCompanyIndicators = [
+    // 上場・大手指標
+    /東証一部|東証二部|東証プライム|上場企業|大手|グローバル|国際的/i,
+    /売上.*[0-9]+億|売上高.*[0-9]+億|年商.*[0-9]+億/i,
+    /従業員.*[0-9]+千|従業員.*[0-9]000|社員.*[0-9]000/i,
+    /資本金.*[0-9]+億|資本金.*[0-9]千万/i,
+    
+    // 知名度の高い大企業
+    /ミズノ|スタンレー電気|三菱|パナソニック|キヤノン/i,
+    /田辺三菱製薬|武田薬品|第一三共|アステラス|エーザイ|大塚製薬/i,
+    /トヨタ|ソニー|NTT|ソフトバンク|日立|富士通/i,
+    
+    // 業界大手パターン
+    /業界.*トップ|業界.*最大手|業界.*リーダー|国内.*シェア/i
+  ];
+  
+  // 中小企業の指標
+  const smallMediumIndicators = [
+    /従業員.*[1-9][0-9]?名|社員.*[1-9][0-9]?名/i,  // 10-99名
+    /従業員.*[1-2][0-9][0-9]名|社員.*[1-2][0-9][0-9]名/i,  // 100-299名
+    /中小企業|小規模|地域密着|町工場|個人経営/i,
+    /設立.*[2-9][0-9][0-9][0-9]年/i,  // 比較的新しい企業（2000年以降）
+    /アットホーム|家族経営|職人|手作り|オーダーメイド/i
+  ];
+  
+  // 個人事業主・零細企業の指標
+  const microBusinessIndicators = [
+    /個人事業|フリーランス|一人|代表者|オーナー/i,
+    /工房|アトリエ|スタジオ|サロン|事務所/i,
+    /従業員.*[1-9]名|社員.*[1-9]名|スタッフ.*[1-9]名/i,  // 1-9名
+    /運営者|主宰|講師|職人|デザイナー|エンジニア/i
+  ];
+  
+  // URLドメインからの判定
+  const isLargeCorpDomain = [
+    /mizuno\.co\.jp|stanley\.co\.jp|mitsubishi|panasonic\.co\.jp/i,
+    /canon\.co\.jp|mt-pharma\.co\.jp|takeda\.co\.jp/i,
+    /toyota\.co\.jp|sony\.co\.jp|ntt\.co\.jp|softbank\.co\.jp/i
+  ].some(pattern => pattern.test(url));
+  
+  // 判定ロジック
+  if (isLargeCorpDomain || largeCompanyIndicators.some(pattern => pattern.test(fullText))) {
+    return '大企業（営業対象外）';
+  }
+  
+  if (microBusinessIndicators.some(pattern => pattern.test(fullText))) {
+    return '個人事業主・零細企業';
+  }
+  
+  if (smallMediumIndicators.some(pattern => pattern.test(fullText))) {
+    return '中小企業（営業対象）';
+  }
+  
+  // デフォルト：中小企業として扱う（営業機会を逃さない）
+  return '中小企業（要確認）';
+}
+
+/**
+ * Phase 4: 事業者区分判定
+ */
+function determineBusinessType(title, snippet) {
+  const corporatePatterns = [
+    /株式会社|有限会社|合同会社|合資会社|合名会社/,
+    /公益財団法人|一般財団法人|社会福祉法人|医療法人/,
+    /学校法人|宗教法人|NPO法人|特定非営利活動法人/
+  ];
+  
+  const individualPatterns = [
+    /事務所|工房|スタジオ|アトリエ|サロン|クリニック/,
+    /個人|フリーランス|独立|開業|代表[:：]/,
+    /運営者|主宰|講師|コンサルタント|デザイナー|エンジニア/
+  ];
+  
+  const fullText = title + ' ' + snippet;
+  
+  if (corporatePatterns.some(pattern => pattern.test(fullText))) {
+    return '法人';
+  }
+  
+  if (individualPatterns.some(pattern => pattern.test(fullText))) {
+    return '個人事業主';
+  }
+  
+  // デフォルトは個人事業主（中小企業データが多いため）
+  return '個人事業主';
+}
+
+/**
+ * Phase 4: 個人事業主の詳細情報抽出
+ */
+function extractIndividualBusinessDetails(title, snippet, url) {
+  const result = {
+    tradeName: '',
+    representative: '',
+    confidence: 0
+  };
+  
+  const fullText = title + ' ' + snippet;
+  
+  // 屋号抽出パターン
+  const tradeNamePatterns = [
+    /([^\s]{2,15})(事務所|工房|スタジオ|デザイン|企画)/g,
+    /([^\s]{2,15})(商店|ストア|サロン|クリニック|ラボ)/g,
+    /([^\s]{3,20})(アトリエ|ギャラリー|オフィス)/g
+  ];
+  
+  // 代表者抽出パターン
+  const representativePatterns = [
+    /代表[:：]\s*([^\s]{2,8})/g,
+    /運営者[:：]\s*([^\s]{2,8})/g,
+    /代表取締役[:：]\s*([^\s]{2,8})/g,
+    /主宰[:：]\s*([^\s]{2,8})/g,
+    /講師[:：]\s*([^\s]{2,8})/g
+  ];
+  
+  // 屋号抽出
+  for (const pattern of tradeNamePatterns) {
+    const match = fullText.match(pattern);
+    if (match) {
+      result.tradeName = match[0];
+      result.confidence += 30;
+      break;
+    }
+  }
+  
+  // 代表者抽出
+  for (const pattern of representativePatterns) {
+    const match = fullText.match(pattern);
+    if (match) {
+      result.representative = match[1];
+      result.confidence += 20;
+      break;
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * 企業名抽出（改良版 + Phase 3: 法人格補完処理）
+ */
+function extractCompanyNameEnhanced(title, snippet = '', url = '') {
+  // 記事タイトルパターンを除外
+  const articlePatterns = [
+    /ニュース|記事|プレス|発表|インタビュー|取材|レポート/,
+    /について|という|への|での|には|から|まで/,
+    /\d{4}年\d{1,2}月|\d{1,2}\/\d{1,2}/,
+    /^(【|「|『)/,
+    /(】|」|』)$/
+  ];
+  
+  if (articlePatterns.some(pattern => pattern.test(title))) {
+    return null;
+  }
+  
+  // 企業名パターン抽出
+  const patterns = [
+    /([^\s\-|]+(?:株式会社|有限会社|合同会社|合資会社|合名会社))/,
+    /(株式会社|有限会社|合同会社|合資会社|合名会社)[^\s\-|]+/,
+    /([^\s\-|]+(?:公益財団法人|一般財団法人|社会福祉法人))/,
+    /(公益財団法人|一般財団法人|社会福祉法人)[^\s\-|]+/,
+    /^([^|\-\s]+)/
+  ];
+  
+  let extractedName = null;
+  
+  for (const pattern of patterns) {
+    const match = title.match(pattern);
+    if (match && match[1]) {
+      extractedName = match[1].trim();
+      break;
+    }
+  }
+  
+  if (!extractedName) {
+    extractedName = title.split(/[\-|]/, 1)[0].trim();
+  }
+  
+  // Phase 3: 法人格補完処理
+  return completeCompanyName(extractedName, title, snippet, url);
+}
+
+/**
+ * Phase 3: 不完全な企業名の補完
+ */
+function completeCompanyName(extractedName, title, snippet, url) {
+  // 法人格のみの場合の処理
+  const incompletePatterns = /^(株式会社|有限会社|公益財団法人|一般財団法人|合同会社|合資会社|合名会社|社会福祉法人)$/i;
+  
+  if (incompletePatterns.test(extractedName)) {
+    // タイトルや説明文から実際の企業名を検索
+    const fullText = title + ' ' + snippet;
+    const namePatterns = [
+      /([^\s]{2,20})(株式会社|有限会社|公益財団法人|一般財団法人)/g,
+      /(株式会社|有限会社|公益財団法人|一般財団法人)([^\s]{2,20})/g,
+      /([^\s]{3,25})(合同会社|合資会社|合名会社|社会福祉法人)/g
+    ];
+    
+    for (const pattern of namePatterns) {
+      const matches = [...fullText.matchAll(pattern)];
+      for (const match of matches) {
+        const fullName = match[0];
+        if (fullName !== extractedName && fullName.length > extractedName.length) {
+          return fullName.trim();
+        }
+      }
+    }
+    
+    // URLから企業名を推定
+    if (url) {
+      const domainMatch = url.match(/https?:\/\/(?:www\.)?([^.\/]+)\./);
+      if (domainMatch && domainMatch[1]) {
+        const domainName = domainMatch[1];
+        // ドメイン名が意味のある企業名っぽい場合
+        if (domainName.length >= 3 && domainName.length <= 15 && !/^\d+$/.test(domainName)) {
+          return domainName + extractedName;
+        }
+      }
+    }
+    
+    // 補完できない場合はnullを返す（無効として扱う）
+    return null;
+  }
+  
+  return extractedName;
+}
+
+/**
+ * Phase 2: 初期フィルタリング（緩和版）- 検索時に適用
+ */
+function shouldExcludeResult(title, snippet, url) {
+  // 最重要な除外のみ（質と量のバランス重視）
+  const criticalExclusions = [
+    /\.pdf$/i,                    // PDFファイル
+    /\.gov\.jp$/i,               // 政府サイト
+    /\.go\.jp$/i,                // 政府サイト
+    /Wikipedia|facebook|twitter/i, // 明確な不要サイト
+    /404|Not Found|Error|エラー/i, // エラーページ
+    /^(ポイント解説|業務紹介|[0-9]+選)/i // 明確な記事タイトル
+  ];
+  
+  return criticalExclusions.some(pattern => 
+    pattern.test(url) || pattern.test(title) || pattern.test(snippet)
+  );
+}
+
+/**
+ * 厳密後処理フィルタリング - 企業情報抽出後に適用（緩和版）
+ */
+function strictPostProcessFilter(companyInfo) {
+  const title = companyInfo.name || '';
+  const url = companyInfo.website || '';
+  const description = companyInfo.description || '';
+  
+  // 明確に除外すべきもののみ（大幅緩和）
+  const clearExclusions = [
+    // 明確な機関サイト
+    /商工会議所の公式サイト|商工会の公式サイト/i,
+    /.*協会の公式サイト|.*組合の公式サイト/i,
+    
+    // 明確な政府サイト
+    /\.lg\.jp.*公式サイト|\.city\..*公式サイト/i,
+    /経済産業省|厚生労働省|総務省/i,
+    
+    // 明確な大企業（ドメインで判定）
+    /mizuno\.co\.jp|stanley\.co\.jp/i,
+    /panasonic\.co\.jp|canon\.co\.jp/i,
+    
+    // 明確な記事・ブログ
+    /^(驚くほど|本当に|実際に).*！$/i,
+    /営業リスト作成ツール|自動化システム/i,
+    /^[0-9]+選.*おすすめ/i
+  ];
+  
+  const fullText = title + ' ' + description + ' ' + url;
+  
+  // 明確に除外すべきもののみ除外
+  if (clearExclusions.some(pattern => pattern.test(fullText))) {
+    return false;
+  }
+  
+  // それ以外は基本的に通す（積極的収集）
+  return true;
+}
+
+/**
+ * 無効な企業名チェック（Phase 1: 記事タイトル除去強化）
+ */
+function isInvalidCompanyName(name) {
+  const enhancedInvalidPatterns = [
+    // 既存パターン
+    /Wikipedia|Facebook|Twitter|LinkedIn|YouTube/i,
+    /404|Not Found|Error|エラー/i,
+    /ニュース|記事|ブログ|掲示板|口コミ/i,
+    /^(について|という|への|での|には|から|まで)/,
+    /^\d+$/,
+    
+    // Phase 1: 記事タイトルパターン強化
+    /^(ポイント|業務|競合|AIで|驚くほど|おすすめ|選び方|解説|紹介|方法)/i,
+    /[!！？?].*選$/, // 「〇〇選」
+    /を(活用|導入|構築|自動化|実現)/i,
+    /^[0-9]+選|比較|まとめ|ガイド$/i,
+    /^(システム|ツール|サービス|方法)$/i, // 一般名詞のみ
+    
+    // 政府機関パターン
+    /^(経済産業省|厚生労働省|総務省|文部科学省|国土交通省)$/i,
+    /省|庁|委員会$/i,
+    
+    // 不完全パターン
+    /^(公益財団法人|一般財団法人|株式会社|有限会社|合同会社|合資会社|合名会社)$/i, // 法人格のみ
+    
+    // 記事特有のパターン
+    /営業リスト作成|自動化ツール|導入事例|活用方法/i,
+    /^(驚くほど|本当に|実際に|確実に)/i,
+    /！$|!$/, // 感嘆符で終わる
+    /^[0-9]+(つ|個|社|件)の/i // 「5つの」「10社の」など
+  ];
+  
+  return enhancedInvalidPatterns.some(pattern => pattern.test(name)) || 
+         name.length < 2 || 
+         name.length > 50;
+}
+
+/**
+ * 業界推定
+ */
+function estimateIndustry(snippet, title) {
+  const industries = {
+    'IT・システム': ['IT', 'システム', 'ソフトウェア', 'アプリ', 'Web', 'DX', 'AI', 'IoT'],
+    '製造業': ['製造', '工場', '機械', '部品', '素材', '化学', '金属'],
+    'サービス業': ['サービス', 'コンサルティング', '支援', '代行', '清掃', '警備'],
+    '医療・福祉': ['医療', '病院', 'クリニック', '介護', '福祉', 'ヘルスケア'],
+    '教育': ['教育', '学習', '研修', 'スクール', '塾', '大学'],
+    '建設・不動産': ['建設', '工事', '不動産', '住宅', 'マンション', '土地'],
+    '小売・卸売': ['販売', '小売', '卸売', '商社', '流通', 'EC'],
+    '金融': ['銀行', '保険', '証券', '金融', 'ローン', 'リース']
+  };
+  
+  const text = (snippet + title).toLowerCase();
+  
+  for (const [industry, keywords] of Object.entries(industries)) {
+    if (keywords.some(keyword => text.includes(keyword.toLowerCase()))) {
+      return industry;
+    }
+  }
+  
+  return 'その他';
+}
+
+/**
+ * 所在地抽出
+ */
+function extractLocation(text) {
+  const locationPattern = /(東京|大阪|愛知|神奈川|埼玉|千葉|兵庫|北海道|福岡|京都|静岡|茨城|広島|宮城|新潟|長野|栃木|群馬|岐阜|三重|滋賀|奈良|和歌山|鳥取|島根|岡山|山口|徳島|香川|愛媛|高知|佐賀|長崎|熊本|大分|宮崎|鹿児島|沖縄|青森|岩手|秋田|山形|福島|富山|石川|福井|山梨)(?:都|道|府|県)/;
+  const match = text.match(locationPattern);
+  return match ? match[0] : '';
+}
+
+/**
+ * 説明文のクリーニング
+ */
+function cleanDescription(text) {
+  return text.replace(/\s+/g, ' ').replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, '').substring(0, 100);
+}

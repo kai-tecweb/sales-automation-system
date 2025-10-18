@@ -199,17 +199,7 @@ function apiCallWithRetry(apiFunction, maxRetries = 3) {
   throw new Error('API制限により処理を中止しました。時間をおいて再実行してください。');
 }
 
-/**
- * 企業検索（デモ版）
- */
-function executeCompanySearch() {
-  try {
-    SpreadsheetApp.getUi().alert('企業検索', '企業検索機能（デモ版）\n\n次のフェーズで実装予定です。', SpreadsheetApp.getUi().ButtonSet.OK);
-  } catch (error) {
-    console.error('❌ 企業検索エラー:', error);
-    SpreadsheetApp.getUi().alert('❌ エラー', `企業検索でエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
-  }
-}
+// 企業検索機能はcompanies.jsファイルで実装されています
 
 /**
  * キーワードレスポンスのパース

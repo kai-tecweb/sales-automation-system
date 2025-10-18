@@ -17,7 +17,7 @@ function onOpen() {
     try {
       SpreadsheetApp.getUi()
         .createMenu('🆘 営業システム (エラー)')
-        .addItem('📊 状態確認', 'checkSystemStatus')
+        .addItem('📊 状態確認', 'showSystemStatus')
         .addItem('🔄 メニュー再読み込み', 'reloadMenu')
         .addToUi();
     } catch (fallbackError) {
@@ -52,7 +52,7 @@ function createRoleBasedMenu() {
     const mainMenu = ui.createMenu(`⚡ 営業自動化システム (${userRole})`);
     
     // 基本システム機能（全ユーザー共通）
-    mainMenu.addItem('📊 システム状態確認', 'checkSystemStatus');
+    mainMenu.addItem('📊 システム状態表示', 'showSystemStatus');
     
     // ログイン/ログアウト機能
     if (isLoggedIn) {
@@ -140,6 +140,11 @@ function addAdministratorMenu(mainMenu, ui) {
     .addItem('💬 提案メッセージ生成', 'generatePersonalizedProposals')
     .addSeparator()
     .addItem('⚡ 完全自動化実行', 'executeFullWorkflow'));
+  
+  // 重要機能への直接アクセス（管理者用）
+  mainMenu.addSeparator();
+  mainMenu.addItem('🏢 企業検索（直接）', 'executeCompanySearch');
+  mainMenu.addItem('🔤 キーワード生成（直接）', 'generateKeywords');
   
   // システム管理（管理者専用）
   mainMenu.addSubMenu(ui.createMenu('⚙️ システム管理')
@@ -774,7 +779,7 @@ function forceUpdateMenu() {
     
     // 新しいメニューを作成
     ui.createMenu('🚀 営業自動化システム (最新)')
-      .addItem('📋 システム状態確認', 'checkSystemStatus')
+      .addItem('📋 システム状態確認', 'showSystemStatus')
       .addItem('🔧 基本シート作成', 'initializeBasicSheets')
       .addSeparator()
       .addSubMenu(ui.createMenu('🔐 ライセンス管理')
@@ -867,9 +872,9 @@ function authenticateAdminFixed() {
 }
 
 /**
- * システム状態確認
+ * システム状態表示（メニュー用）
  */
-function checkSystemStatus() {
+function showSystemStatus() {
   try {
     const ui = SpreadsheetApp.getUi();
     

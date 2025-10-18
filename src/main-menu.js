@@ -141,7 +141,11 @@ function addAdministratorMenu(mainMenu, ui) {
   mainMenu.addSubMenu(ui.createMenu('⚙️ システム管理')
     .addItem('🔄 メニュー更新', 'forceUpdateMenu')
     .addItem('🏥 システム診断', 'performSystemDiagnostics')
-    .addItem('📊 システム情報', 'showSystemInfo'));
+    .addItem('📊 システム情報', 'showSystemInfo')
+    .addSeparator()
+    .addItem('🧪 包括的システムテスト', 'runComprehensiveSystemTest')
+    .addItem('🔐 権限テスト実行', 'testUserPermissions')
+    .addItem('💊 システム健康チェック', 'performSystemHealthCheck'));
 }
 
 /**

@@ -382,3 +382,103 @@ function checkDataIntegrity() {
   
   return integrity;
 }
+
+/**
+ * 実行ステータスの更新
+ * 制御パネルのステータスメッセージを更新
+ */
+function updateExecutionStatus(message) {
+  try {
+    const sheet = getSafeSheet(SHEET_NAMES.CONTROL);
+    if (!sheet) {
+      console.log('制御パネルシートが見つからないため、ステータス更新をスキップします');
+      return;
+    }
+    
+    // ステータスメッセージの更新（制御パネルの適切な場所）
+    sheet.getRange('B7').setValue(message);
+    sheet.getRange('B8').setValue(new Date());
+    
+    console.log(`📊 ステータス更新: ${message}`);
+    
+  } catch (error) {
+    console.error('❌ ステータス更新エラー:', error);
+  }
+}
+
+/**
+ * 実行ログの記録
+ * 実行ログシートに結果を記録
+ */
+function logExecution(action, status, successCount, errorCount) {
+  try {
+    const sheet = getSafeSheet(SHEET_NAMES.LOGS);
+    if (!sheet) {
+      console.log('実行ログシートが見つからないため、ログ記録をスキップします');
+      return;
+    }
+    
+    // ヘッダーが無い場合は作成
+    if (sheet.getLastRow() === 0) {
+      const headers = ['実行日時', 'アクション', 'ステータス', '成功数', 'エラー数', '備考'];
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      
+      // ヘッダーのスタイル設定
+      const headerRange = sheet.getRange(1, 1, 1, headers.length);
+      headerRange.setBackground('#4285f4');
+      headerRange.setFontColor('white');
+      headerRange.setFontWeight('bold');
+    }
+    
+    // 新しいログエントリを追加
+    const newRow = sheet.getLastRow() + 1;
+    const logEntry = [
+      new Date(),
+      action,
+      status,
+      successCount || 0,
+      errorCount || 0,
+      `成功: ${successCount || 0}, エラー: ${errorCount || 0}`
+    ];
+    
+    sheet.getRange(newRow, 1, 1, logEntry.length).setValues([logEntry]);
+    
+    console.log(`📝 ログ記録: ${action} - ${status}`);
+    
+  } catch (error) {
+    console.error('❌ ログ記録エラー:', error);
+  }
+}
+
+/**
+ * システムエラーの統一処理
+ */
+function handleSystemError(actionName, error) {
+  const errorMessage = `${actionName}でエラーが発生しました: ${error.message}`;
+  
+  console.error(`❌ ${actionName}エラー:`, error);
+  updateExecutionStatus(errorMessage);
+  logExecution(actionName, 'ERROR', 0, 1);
+  
+  // ユーザーへの通知
+  try {
+    SpreadsheetApp.getUi().alert('エラー', errorMessage, SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch (uiError) {
+    console.error('❌ UI通知エラー:', uiError);
+  }
+  
+  throw error;
+}
+
+/**
+ * システム初期化チェック
+ */
+function checkSystemInitialization() {
+  const status = checkSystemStatus();
+  
+  if (status.needsInitialization) {
+    throw new Error(`システムが初期化されていません: ${status.message}`);
+  }
+  
+  return status;
+}

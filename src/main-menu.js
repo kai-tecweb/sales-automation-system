@@ -211,8 +211,8 @@ function generateKeywordsWithPermissionCheck() {
     }
     
     // キーワード生成機能の実行
-    if (typeof generateStrategicKeywords === 'function') {
-      generateStrategicKeywords();
+    if (typeof executeKeywordGeneration === 'function') {
+      executeKeywordGeneration();
     } else {
       SpreadsheetApp.getUi().alert('機能エラー', 'キーワード生成機能が見つかりません', SpreadsheetApp.getUi().ButtonSet.OK);
     }
@@ -267,8 +267,8 @@ function generateProposalsWithPermissionCheck() {
     }
     
     // 提案生成機能の実行
-    if (typeof generatePersonalizedProposals === 'function') {
-      generatePersonalizedProposals();
+    if (typeof executeProposalGeneration === 'function') {
+      executeProposalGeneration();
     } else {
       SpreadsheetApp.getUi().alert('機能エラー', '提案生成機能が見つかりません', SpreadsheetApp.getUi().ButtonSet.OK);
     }

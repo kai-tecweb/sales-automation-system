@@ -1,6 +1,6 @@
 /**
- * 簡単なメニューテスト - システム起動確認用
- * メイン onOpen 関数
+ * 営業自動化システム メインメニューシステム
+ * 統合されたメニュー構造とライセンス管理
  */
 
 function onOpen() {
@@ -16,7 +16,7 @@ function onOpen() {
       .addSeparator()
       .addSubMenu(ui.createMenu('🔐 ライセンス管理')
         .addItem('📋 ライセンス状況', 'showLicenseStatus')
-        .addItem('👤 管理者認証', 'authenticateAdmin')
+        .addItem('👤 管理者認証', 'authenticateAdminFixed')
         .addSeparator()
         .addItem('💰 料金プラン確認', 'showPricingPlans')
         .addItem('⚙️ ライセンス設定', 'configureLicense')
@@ -24,12 +24,17 @@ function onOpen() {
         .addItem('📅 使用開始設定', 'setLicenseStartDate')
         .addItem('🔄 期限延長', 'extendLicense')
         .addItem('🔒 システムロック解除', 'unlockSystem'))
+      .addSubMenu(ui.createMenu('🔑 API設定')
+        .addItem('🔧 APIキー設定', 'setApiKeys')
+        .addItem('📋 設定状況確認', 'checkApiKeys')
+        .addItem('🗑️ APIキー削除', 'clearApiKeys'))
       .addSubMenu(ui.createMenu('👥 ユーザー管理')
         .addItem('🔄 ユーザー切り替え', 'switchUserMode')
         .addItem('📊 権限確認', 'checkUserPermissions'))
-      .addSeparator()
-      .addItem('ℹ️ システム情報', 'showSystemInfo')
-      .addItem('🔄 メニュー再読み込み', 'reloadMenu')
+      .addSubMenu(ui.createMenu('⚙️ システム管理')
+        .addItem('🔄 メニュー更新', 'forceUpdateMenu')
+        .addItem('🏥 システム診断', 'performSystemDiagnostics')
+        .addItem('� システム情報', 'showSystemInfo'))
       .addToUi();
     
     console.log('✅ MAIN system menu created successfully');
@@ -68,6 +73,110 @@ function reloadMenu() {
   } catch (error) {
     console.error('Menu reload error:', error);
     SpreadsheetApp.getUi().alert('❌ エラー', 'メニュー再読み込みでエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 強制メニュー更新（デバッグ用）
+ */
+function forceUpdateMenu() {
+  try {
+    console.log('🔄 Force updating menu...');
+    
+    // 既存のメニューをクリア
+    const ui = SpreadsheetApp.getUi();
+    
+    // 新しいメニューを作成
+    ui.createMenu('🚀 営業自動化システム (最新)')
+      .addItem('📋 システム状態確認', 'checkSystemStatus')
+      .addItem('🔧 基本シート作成', 'initializeBasicSheets')
+      .addSeparator()
+      .addSubMenu(ui.createMenu('🔐 ライセンス管理')
+        .addItem('📋 ライセンス状況', 'showLicenseStatus')
+        .addItem('👤 管理者認証', 'authenticateAdmin')
+        .addSeparator()
+        .addItem('💰 料金プラン確認', 'showPricingPlans')
+        .addItem('⚙️ ライセンス設定', 'configureLicense')
+        .addSeparator()
+        .addItem('📅 使用開始設定', 'setLicenseStartDate')
+        .addItem('🔄 期限延長', 'extendLicense')
+        .addItem('🔒 システムロック解除', 'unlockSystem'))
+      .addSubMenu(ui.createMenu('👥 ユーザー管理')
+        .addItem('🔄 ユーザー切り替え', 'switchUserMode')
+        .addItem('📊 権限確認', 'checkUserPermissions'))
+      .addSeparator()
+      .addItem('ℹ️ システム情報', 'showSystemInfo')
+      .addItem('🔄 メニュー再読み込み', 'forceUpdateMenu')
+      .addToUi();
+    
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      'メニュー強制更新完了', 
+      '🚀 最新メニューが適用されました', 
+      5
+    );
+    
+    console.log('✅ Force menu update completed');
+    
+  } catch (error) {
+    console.error('Force menu update error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', 'メニュー強制更新でエラーが発生しました: ' + error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 管理者認証（修正版） - メニューから呼び出し可能
+ */
+function authenticateAdminFixed() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    const response = ui.prompt(
+      '🔐 管理者認証',
+      '管理者パスワードを入力してください:\n\nパスワード: SalesAuto2024!',
+      ui.ButtonSet.OK_CANCEL
+    );
+    
+    if (response.getSelectedButton() === ui.Button.OK) {
+      const password = response.getResponseText();
+      
+      // ADMIN_PASSWORD = "SalesAuto2024!" (license-manager.jsで定義)
+      if (password === 'SalesAuto2024!') {
+        // 管理者モードを有効化
+        PropertiesService.getScriptProperties().setProperty('ADMIN_MODE', 'true');
+        
+        SpreadsheetApp.getActiveSpreadsheet().toast(
+          '管理者認証成功', 
+          '🟢 管理者機能が有効になりました', 
+          3
+        );
+        
+        ui.alert(
+          '✅ 認証成功',
+          '管理者モードが有効になりました。\n管理者専用機能が利用可能です。',
+          ui.ButtonSet.OK
+        );
+        
+        // ライセンス管理シートを表示
+        createLicenseManagementSheet();
+        
+        return true;
+        
+      } else {
+        ui.alert(
+          '❌ 認証失敗',
+          'パスワードが正しくありません。\n正しいパスワード: SalesAuto2024!',
+          ui.ButtonSet.OK
+        );
+        
+        return false;
+      }
+    }
+    
+    return false;
+    
+  } catch (error) {
+    console.error('Admin auth fixed error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', '管理者認証でエラーが発生しました: ' + error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);
+    return false;
   }
 }
 
@@ -352,5 +461,55 @@ function checkUserPermissions() {
   } catch (error) {
     console.error('User permissions error:', error);
     SpreadsheetApp.getUi().alert('❌ エラー', '権限確認でエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * システム診断機能
+ */
+function performSystemDiagnostics() {
+  const ui = SpreadsheetApp.getUi();
+  
+  try {
+    let diagnostics = '【システム診断結果】\n\n';
+    
+    // 1. APIキー確認
+    const apiValidation = validateApiKeys();
+    diagnostics += '🔑 APIキー設定:\n';
+    diagnostics += '  OpenAI: ' + (apiValidation.openaiKey ? '✅' : '❌') + '\n';
+    diagnostics += '  Google Search: ' + (apiValidation.googleKey ? '✅' : '❌') + '\n';
+    diagnostics += '  Search Engine ID: ' + (apiValidation.engineId ? '✅' : '❌') + '\n\n';
+    
+    // 2. ライセンス状況確認
+    const licenseInfo = getLicenseInfo();
+    diagnostics += '📋 ライセンス状況:\n';
+    diagnostics += '  管理者モード: ' + (licenseInfo.isAdminMode ? '✅ 有効' : '❌ 無効') + '\n';
+    diagnostics += '  ライセンス: ' + (licenseInfo.isLicenseSet ? '✅ 設定済み' : '❌ 未設定') + '\n\n';
+    
+    // 3. スプレッドシート確認
+    const sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+    diagnostics += '📊 スプレッドシート:\n';
+    diagnostics += '  シート数: ' + sheets.length + '\n';
+    diagnostics += '  利用可能: ✅\n\n';
+    
+    // 4. 全体状況
+    const allGood = apiValidation.allSet && licenseInfo.isAdminMode;
+    diagnostics += '🎯 総合状況: ' + (allGood ? '✅ 正常' : '⚠️ 要設定') + '\n\n';
+    
+    if (!allGood) {
+      diagnostics += '📝 推奨アクション:\n';
+      if (!apiValidation.allSet) {
+        diagnostics += '  • APIキーを設定してください\n';
+      }
+      if (!licenseInfo.isAdminMode) {
+        diagnostics += '  • 管理者認証を行ってください\n';
+      }
+    }
+    
+    ui.alert('システム診断', diagnostics, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    Logger.log('システム診断エラー: ' + error.toString());
+    ui.alert('診断エラー', 'システム診断中にエラーが発生しました: ' + error.toString(), ui.ButtonSet.OK);
   }
 }

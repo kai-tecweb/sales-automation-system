@@ -359,24 +359,59 @@ function showPricingPlans() {
  */
 function authenticateAdmin() {
   try {
-    // license-manager.js の関数を呼び出し
-    const result = showAdminAuthenticationDialog();
-    
-    if (result) {
-      SpreadsheetApp.getActiveSpreadsheet().toast(
-        '管理者認証成功', 
-        '� 管理者機能が有効になりました', 
-        3
-      );
-      
-      // ライセンス管理シートを表示
-      createLicenseManagementSheet();
-    }
+    // license-manager.js の authenticateAdmin() 関数を直接呼び出し
+    callLicenseManagerAuth();
     
   } catch (error) {
     console.error('Admin auth error:', error);
     SpreadsheetApp.getUi().alert('❌ エラー', '管理者認証でエラーが発生しました: ' + error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);
   }
+}
+
+/**
+ * ライセンス管理の認証関数を呼び出し
+ */
+function callLicenseManagerAuth() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.prompt(
+    '🔐 管理者認証',
+    '管理者パスワードを入力してください:\n\nパスワード: SalesAuto2024!',
+    ui.ButtonSet.OK_CANCEL
+  );
+  
+  if (response.getSelectedButton() === ui.Button.OK) {
+    const password = response.getResponseText();
+    
+    if (password === 'SalesAuto2024!') {
+      // 管理者モードを有効化
+      PropertiesService.getScriptProperties().setProperty('ADMIN_MODE', 'true');
+      
+      SpreadsheetApp.getActiveSpreadsheet().toast(
+        '管理者認証成功', 
+        '🟢 管理者機能が有効になりました', 
+        3
+      );
+      
+      ui.alert(
+        '✅ 認証成功',
+        '管理者モードが有効になりました。\n管理者専用機能が利用可能です。',
+        ui.ButtonSet.OK
+      );
+      
+      // ライセンス管理シートを表示
+      createLicenseManagementSheet();
+      
+      return true;
+    } else {
+      ui.alert(
+        '❌ 認証失敗',
+        'パスワードが正しくありません。',
+        ui.ButtonSet.OK
+      );
+      return false;
+    }
+  }
+  return false;
 }
 
 /**
@@ -511,5 +546,52 @@ function performSystemDiagnostics() {
   } catch (error) {
     Logger.log('システム診断エラー: ' + error.toString());
     ui.alert('診断エラー', 'システム診断中にエラーが発生しました: ' + error.toString(), ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * システムロック解除
+ */
+function unlockSystem() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    // 管理者権限チェック
+    const licenseInfo = getLicenseInfo();
+    if (!licenseInfo.adminMode) {
+      ui.alert(
+        '🔒 権限エラー',
+        'システムロック解除は管理者専用機能です。\n先に「👤 管理者認証」を行ってください。',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+    
+    const result = ui.alert(
+      '🔓 システムロック解除',
+      'システムロックを解除しますか？\n\n注意: この操作はライセンス期限に関係なく、\nシステムの全機能を有効にします。',
+      ui.ButtonSet.YES_NO
+    );
+    
+    if (result === ui.Button.YES) {
+      // システムロックを解除
+      PropertiesService.getScriptProperties().setProperty('SYSTEM_LOCKED', 'false');
+      
+      ui.alert(
+        '✅ ロック解除完了',
+        'システムロックが解除されました。\n全機能が利用可能になりました。',
+        ui.ButtonSet.OK
+      );
+      
+      SpreadsheetApp.getActiveSpreadsheet().toast(
+        'システムロック解除完了', 
+        '🔓 全機能が利用可能になりました', 
+        3
+      );
+    }
+    
+  } catch (error) {
+    console.error('Unlock system error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', 'システムロック解除でエラーが発生しました: ' + error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }

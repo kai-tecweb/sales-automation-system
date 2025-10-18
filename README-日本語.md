@@ -16,19 +16,30 @@
 
 ```
 sales-automation-system/
+├── 作業再開ガイド.md              # 作業再開時の手順書
+├── 作業再開ガイド-最新版.md       # 最新の作業状況
+├── 明日からの開始ガイド.md        # 開始時ガイド
+├── 作業ログ.md                   # 開発作業履歴
+├── README-日本語.md              # プロジェクト説明（日本語）
+├── README.md                     # プロジェクト説明（英語）
 ├── src/                          # ソースコード
-│   ├── menu.js                   # 完全版UIメニューシステム
+│   ├── main-menu.js              # 権限対応メニューシステム
+│   ├── user-manager.js           # ユーザー権限管理システム
+│   ├── license-manager.js        # ライセンス管理システム
+│   ├── properties-manager.js     # API設定管理
 │   ├── keywords.js               # キーワード生成エンジン
 │   ├── companies.js              # 企業検索・分析エンジン
 │   ├── proposals.js              # 提案生成エンジン
 │   ├── proposals-enhanced.js     # 拡張提案機能
 │   ├── scoring.js                # マッチ度スコアリング
 │   ├── workflow.js               # 全自動ワークフロー制御
-│   ├── license-manager.js        # ライセンス管理システム
 │   ├── utils.js                  # ユーティリティ機能
 │   └── appsscript.json          # GAS設定
 ├── docs/                        # 📚 ドキュメント（日本語）
 │   ├── はじめに.md              # プロジェクト概要
+│   ├── ユーザー権限管理システム設計書.md  # 権限システム設計
+│   ├── 料金プラン詳細仕様書-v3.0.md    # 料金プラン完全版
+│   ├── 料金プラン概要一覧.md         # 料金プラン概要
 │   ├── specifications/          # 📋 仕様書類
 │   │   ├── システム仕様書-v2.0.md    # メインシステム仕様
 │   │   ├── 技術仕様書-v2.0.md       # 技術詳細仕様
@@ -71,6 +82,11 @@ sales-automation-system/
 - **[技術仕様書 v2.0](docs/specifications/技術仕様書-v2.0.md)** - 技術実装詳細
 - **[API仕様書 v2.0](docs/specifications/API仕様書-v2.0.md)** - 外部API連携
 - **[データ仕様書](docs/specifications/データ仕様書.md)** - データ構造定義
+- **[ユーザー権限管理システム設計書](docs/ユーザー権限管理システム設計書.md)** - 権限システム設計
+
+### 💰 料金・プラン
+- **[料金プラン詳細仕様書 v3.0](docs/料金プラン詳細仕様書-v3.0.md)** - 完全版料金体系
+- **[料金プラン概要一覧](docs/料金プラン概要一覧.md)** - 簡潔版料金情報
 
 ### 💰 利用ガイド
 - **[料金・API利用ガイド](docs/specifications/料金・API利用ガイド.md)** - 料金体系・API設定

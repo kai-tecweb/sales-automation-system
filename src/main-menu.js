@@ -104,6 +104,7 @@ function addAdministratorMenu(mainMenu, ui) {
     .addItem('👤 管理者認証', 'authenticateAdminFixed')
     .addSeparator()
     .addItem('💰 料金プラン確認', 'showPricingPlans')
+    .addItem('📊 料金シミュレーター', 'showPricingCalculator')
     .addItem('⚙️ ライセンス設定', 'configureLicense')
     .addSeparator()
     .addItem('📅 使用開始設定', 'setLicenseStartDate')
@@ -786,37 +787,206 @@ function showLicenseStatus() {
 }
 
 /**
- * 料金プラン確認（仮実装）
+ * 料金プラン確認（v3.0 統一版）
  */
 function showPricingPlans() {
   try {
     const ui = SpreadsheetApp.getUi();
     
-    let plans = '💰 料金プラン一覧\n\n';
-    plans += '🥉 ベーシック (¥500/月)\n';
-    plans += '• 企業検索: 10社/日\n';
-    plans += '• AI機能: なし\n\n';
+    let plans = '💰 営業自動化システム 料金プラン v3.0\n\n';
     
-    plans += '🥈 スタンダード (¥1,500/月)\n';
+    // トライアル版
+    plans += '🆓 トライアル版（推奨スタート）\n';
+    plans += '• 期間: 10営業日間\n';
+    plans += '• 制限: 50社/日\n';
+    plans += '• 料金: 無料（API実費のみ）\n';
+    plans += '• 特典: Google無料枠 + ChatGPT $5クレジット\n\n';
+    
+    // ベーシック版
+    plans += '🥉 ベーシック版（¥1,980/月）\n';
     plans += '• 企業検索: 50社/日\n';
-    plans += '• AI機能: あり\n\n';
+    plans += '• ユーザー: 1名\n';
+    plans += '• AI機能: ✅ フル機能\n';
+    plans += '• 月額目安: ¥2,070-¥4,230（API料金込み）\n\n';
     
-    plans += '🥇 プロフェッショナル (¥5,500/月)\n';
-    plans += '• 企業検索: 100社/日\n';
-    plans += '• AI機能: あり\n';
-    plans += '• マルチアカウント: 2アカウント\n\n';
+    // スタンダード版
+    plans += '🥈 スタンダード版（¥4,980/月）\n';
+    plans += '• 企業検索: 200社/日\n';
+    plans += '• ユーザー: 3名まで\n';
+    plans += '• AI機能: ✅ フル機能\n';
+    plans += '• 月額目安: ¥5,280-¥12,480（API料金込み）\n\n';
     
-    plans += '💎 エンタープライズ (¥17,500/月)\n';
+    // プロフェッショナル版
+    plans += '🥇 プロフェッショナル版（¥12,800/月）\n';
     plans += '• 企業検索: 500社/日\n';
-    plans += '• AI機能: あり\n';
-    plans += '• マルチアカウント: 5アカウント';
+    plans += '• ユーザー: 10名まで\n';
+    plans += '• AI機能: ✅ フル機能 + 高度分析\n';
+    plans += '• 追加: カスタムワークフロー\n';
+    plans += '• 月額目安: ¥13,700-¥35,300（API料金込み）\n\n';
     
-    ui.alert('料金プラン', plans, ui.ButtonSet.OK);
+    // エンタープライズ版
+    plans += '💎 エンタープライズ版（¥48,000/月）\n';
+    plans += '• 企業検索: 無制限\n';
+    plans += '• ユーザー: 無制限\n';
+    plans += '• AI機能: ✅ カスタムAI対応\n';
+    plans += '• 追加: 専用サポート・カスタム開発\n\n';
+    
+    // API料金説明
+    plans += '📊 API料金について:\n';
+    plans += '• 基本版: 約0.1円/企業（検索のみ）\n';
+    plans += '• AI強化版: 約2.5円/企業（検索 + AI生成）\n';
+    plans += '• Google無料枠: 100回/日まで無料\n';
+    plans += '• ChatGPT初回: $5無料クレジット\n\n';
+    
+    plans += '🎯 まずは10営業日無料トライアルから！';
+    
+    ui.alert('料金プラン v3.0', plans, ui.ButtonSet.OK);
     
   } catch (error) {
     console.error('Pricing plans error:', error);
     SpreadsheetApp.getUi().alert('❌ エラー', '料金プラン確認でエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
   }
+}
+
+/**
+ * 料金シミュレーター
+ */
+function showPricingCalculator() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    // 企業数の入力
+    const companiesResponse = ui.prompt(
+      '📊 料金シミュレーター',
+      '1日あたりの企業検索数を入力してください（例: 50）:',
+      ui.ButtonSet.OK_CANCEL
+    );
+    
+    if (companiesResponse.getSelectedButton() !== ui.Button.OK) {
+      return;
+    }
+    
+    const companiesPerDay = parseInt(companiesResponse.getResponseText());
+    if (isNaN(companiesPerDay) || companiesPerDay <= 0) {
+      ui.alert('エラー', '有効な数値を入力してください', ui.ButtonSet.OK);
+      return;
+    }
+    
+    // AI機能の選択
+    const aiResponse = ui.alert(
+      '💡 AI機能選択',
+      'AI機能（キーワード・提案生成）を使用しますか？\n\n' +
+      'YES: AI強化版（約2.5円/企業）\n' +
+      'NO: 基本版（約0.1円/企業）',
+      ui.ButtonSet.YES_NO_CANCEL
+    );
+    
+    if (aiResponse === ui.Button.CANCEL) {
+      return;
+    }
+    
+    const useAI = aiResponse === ui.Button.YES;
+    
+    // 料金計算
+    const result = calculatePricingSimulation(companiesPerDay, useAI);
+    
+    // 結果表示
+    let simulationResult = `📊 料金シミュレーション結果\n\n`;
+    simulationResult += `📈 条件:\n`;
+    simulationResult += `• 企業検索: ${companiesPerDay}社/日\n`;
+    simulationResult += `• AI機能: ${useAI ? 'あり（AI強化版）' : 'なし（基本版）'}\n`;
+    simulationResult += `• API単価: ${useAI ? '約2.5円' : '約0.1円'}/企業\n\n`;
+    
+    simulationResult += `💰 月額料金試算:\n\n`;
+    
+    result.plans.forEach(plan => {
+      if (companiesPerDay <= plan.dailyLimit || plan.dailyLimit === 0) {
+        simulationResult += `${plan.icon} ${plan.name}\n`;
+        simulationResult += `• ライセンス: ¥${plan.license.toLocaleString()}/月\n`;
+        simulationResult += `• API料金: ¥${plan.apiCost.toLocaleString()}/月\n`;
+        simulationResult += `• 合計: ¥${plan.totalCost.toLocaleString()}/月\n`;
+        if (plan.users > 1) {
+          simulationResult += `• ユーザー: ${plan.users}名まで\n`;
+        }
+        simulationResult += `\n`;
+      }
+    });
+    
+    simulationResult += `🎁 節約のヒント:\n`;
+    if (!useAI) {
+      simulationResult += `• Google無料枠活用で月約¥3,000節約可能\n`;
+    }
+    simulationResult += `• 長期契約割引: 6ヶ月10%、12ヶ月20%OFF\n`;
+    simulationResult += `• まずは10営業日無料トライアルから！`;
+    
+    ui.alert('料金シミュレーション', simulationResult, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('Pricing calculator error:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', '料金シミュレーターでエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 料金計算ロジック
+ */
+function calculatePricingSimulation(companiesPerDay, useAI) {
+  const apiCostPerCompany = useAI ? 2.5 : 0.1;
+  const monthlyApiCost = Math.ceil(companiesPerDay * apiCostPerCompany * 30);
+  
+  const plans = [
+    {
+      name: 'ベーシック版',
+      icon: '🥉',
+      license: 1980,
+      dailyLimit: 50,
+      users: 1,
+      apiCost: Math.min(monthlyApiCost, companiesPerDay <= 50 ? monthlyApiCost : 0),
+      totalCost: 0
+    },
+    {
+      name: 'スタンダード版',
+      icon: '🥈',
+      license: 4980,
+      dailyLimit: 200,
+      users: 3,
+      apiCost: Math.min(monthlyApiCost, companiesPerDay <= 200 ? monthlyApiCost : 0),
+      totalCost: 0
+    },
+    {
+      name: 'プロフェッショナル版',
+      icon: '🥇',
+      license: 12800,
+      dailyLimit: 500,
+      users: 10,
+      apiCost: Math.min(monthlyApiCost, companiesPerDay <= 500 ? monthlyApiCost : 0),
+      totalCost: 0
+    },
+    {
+      name: 'エンタープライズ版',
+      icon: '💎',
+      license: 48000,
+      dailyLimit: 0, // 無制限
+      users: 999,
+      apiCost: monthlyApiCost,
+      totalCost: 0
+    }
+  ];
+  
+  // 合計料金計算
+  plans.forEach(plan => {
+    plan.totalCost = plan.license + plan.apiCost;
+  });
+  
+  return {
+    plans: plans,
+    conditions: {
+      companiesPerDay: companiesPerDay,
+      useAI: useAI,
+      apiCostPerCompany: apiCostPerCompany,
+      monthlyApiCost: monthlyApiCost
+    }
+  };
 }
 
 /**

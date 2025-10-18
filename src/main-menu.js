@@ -787,60 +787,58 @@ function showLicenseStatus() {
 }
 
 /**
- * 料金プラン確認（v3.0 統一版）
+ * ProspectFlow 料金プラン確認（v4.0 統一版）
  */
 function showPricingPlans() {
   try {
     const ui = SpreadsheetApp.getUi();
     
-    let plans = '💰 営業自動化システム 料金プラン v3.0\n\n';
+    let plans = '💰 ProspectFlow 営業自動化システム 料金プラン\n\n';
     
     // トライアル版
-    plans += '🆓 トライアル版（推奨スタート）\n';
-    plans += '• 期間: 10営業日間\n';
-    plans += '• 制限: 50社/日\n';
-    plans += '• 料金: 無料（API実費のみ）\n';
-    plans += '• 特典: Google無料枠 + ChatGPT $5クレジット\n\n';
+    plans += '🆓 トライアル（10営業日無料）\n';
+    plans += '• 期間: 10営業日限定\n';
+    plans += '• 企業検索: 5社/日\n';
+    plans += '• AI機能: ✅ 利用可能\n';
+    plans += '• 月額: ¥0 + API実費約¥50\n\n';
     
     // ベーシック版
-    plans += '🥉 ベーシック版（¥1,980/月）\n';
-    plans += '• 企業検索: 50社/日\n';
-    plans += '• ユーザー: 1名\n';
-    plans += '• AI機能: ✅ フル機能\n';
-    plans += '• 月額目安: ¥2,070-¥4,230（API料金込み）\n\n';
+    plans += '🥉 ベーシック（¥500/月）\n';
+    plans += '• 企業検索: 10社/日\n';
+    plans += '• AI機能: ❌ 利用不可\n';
+    plans += '• アカウント: 1名\n';
+    plans += '• 合計月額: ¥500（API料金なし）\n\n';
     
     // スタンダード版
-    plans += '🥈 スタンダード版（¥4,980/月）\n';
-    plans += '• 企業検索: 200社/日\n';
-    plans += '• ユーザー: 3名まで\n';
-    plans += '• AI機能: ✅ フル機能\n';
-    plans += '• 月額目安: ¥5,280-¥12,480（API料金込み）\n\n';
+    plans += '🥈 スタンダード（¥1,500/月）\n';
+    plans += '• 企業検索: 50社/日\n';
+    plans += '• AI機能: ✅ 利用可能\n';
+    plans += '• アカウント: 1名\n';
+    plans += '• 合計月額: ¥3,500（API込み）\n\n';
     
     // プロフェッショナル版
-    plans += '🥇 プロフェッショナル版（¥12,800/月）\n';
-    plans += '• 企業検索: 500社/日\n';
-    plans += '• ユーザー: 10名まで\n';
-    plans += '• AI機能: ✅ フル機能 + 高度分析\n';
-    plans += '• 追加: カスタムワークフロー\n';
-    plans += '• 月額目安: ¥13,700-¥35,300（API料金込み）\n\n';
+    plans += '🥇 プロフェッショナル（¥5,500/月）\n';
+    plans += '• 企業検索: 100社/日\n';
+    plans += '• AI機能: ✅ 利用可能\n';
+    plans += '• アカウント: 2名\n';
+    plans += '• 合計月額: ¥11,500（API込み）\n\n';
     
     // エンタープライズ版
-    plans += '💎 エンタープライズ版（¥48,000/月）\n';
-    plans += '• 企業検索: 無制限\n';
-    plans += '• ユーザー: 無制限\n';
-    plans += '• AI機能: ✅ カスタムAI対応\n';
-    plans += '• 追加: 専用サポート・カスタム開発\n\n';
+    plans += '💎 エンタープライズ（¥17,500/月）\n';
+    plans += '• 企業検索: 500社/日\n';
+    plans += '• AI機能: ✅ 利用可能\n';
+    plans += '• アカウント: 5名\n';
+    plans += '• 合計月額: ¥47,500（API込み）\n\n';
     
-    // API料金説明
-    plans += '📊 API料金について:\n';
-    plans += '• 基本版: 約0.1円/企業（検索のみ）\n';
-    plans += '• AI強化版: 約2.5円/企業（検索 + AI生成）\n';
-    plans += '• Google無料枠: 100回/日まで無料\n';
-    plans += '• ChatGPT初回: $5無料クレジット\n\n';
+    // 特徴説明
+    plans += '� 特徴:\n';
+    plans += '• トライアル: 全機能お試し可能\n';
+    plans += '• ベーシック: 手動入力・基本テンプレート\n';
+    plans += '• その他: AI キーワード・提案生成\n\n';
     
     plans += '🎯 まずは10営業日無料トライアルから！';
     
-    ui.alert('料金プラン v3.0', plans, ui.ButtonSet.OK);
+    ui.alert('ProspectFlow 料金プラン', plans, ui.ButtonSet.OK);
     
   } catch (error) {
     console.error('Pricing plans error:', error);
@@ -891,33 +889,48 @@ function showPricingCalculator() {
     const result = calculatePricingSimulation(companiesPerDay, useAI);
     
     // 結果表示
-    let simulationResult = `📊 料金シミュレーション結果\n\n`;
+    let simulationResult = `📊 ProspectFlow 料金シミュレーション結果\n\n`;
     simulationResult += `📈 条件:\n`;
     simulationResult += `• 企業検索: ${companiesPerDay}社/日\n`;
-    simulationResult += `• AI機能: ${useAI ? 'あり（AI強化版）' : 'なし（基本版）'}\n`;
-    simulationResult += `• API単価: ${useAI ? '約2.5円' : '約0.1円'}/企業\n\n`;
+    simulationResult += `• AI機能: ${useAI ? 'あり（キーワード・提案生成）' : 'なし（手動入力）'}\n\n`;
     
-    simulationResult += `💰 月額料金試算:\n\n`;
+    simulationResult += `💰 推奨プラン:\n\n`;
     
     result.plans.forEach(plan => {
       if (companiesPerDay <= plan.dailyLimit || plan.dailyLimit === 0) {
-        simulationResult += `${plan.icon} ${plan.name}\n`;
-        simulationResult += `• ライセンス: ¥${plan.license.toLocaleString()}/月\n`;
-        simulationResult += `• API料金: ¥${plan.apiCost.toLocaleString()}/月\n`;
-        simulationResult += `• 合計: ¥${plan.totalCost.toLocaleString()}/月\n`;
-        if (plan.users > 1) {
-          simulationResult += `• ユーザー: ${plan.users}名まで\n`;
+        // ベーシックプランでAI機能を希望する場合の特別処理
+        if (plan.name === 'ベーシック' && useAI) {
+          simulationResult += `${plan.icon} ${plan.name}\n`;
+          simulationResult += `• ❌ AI機能非対応プランです\n`;
+          simulationResult += `• スタンダードプラン以上をご検討ください\n\n`;
+        } else {
+          simulationResult += `${plan.icon} ${plan.name}\n`;
+          simulationResult += `• システム利用料: ¥${plan.license.toLocaleString()}/月\n`;
+          
+          if (plan.name === 'トライアル') {
+            simulationResult += `• 期間: ${plan.period}\n`;
+            simulationResult += `• API料金: ¥${plan.apiCost}/期間\n`;
+          } else {
+            simulationResult += `• API料金: ¥${plan.apiCost.toLocaleString()}/月\n`;
+          }
+          
+          if (typeof plan.totalCost === 'number') {
+            simulationResult += `• 合計: ¥${plan.totalCost.toLocaleString()}/月\n`;
+          }
+          
+          if (plan.users > 1) {
+            simulationResult += `• アカウント: ${plan.users}名まで\n`;
+          }
+          simulationResult += `\n`;
         }
-        simulationResult += `\n`;
       }
     });
     
-    simulationResult += `🎁 節約のヒント:\n`;
-    if (!useAI) {
-      simulationResult += `• Google無料枠活用で月約¥3,000節約可能\n`;
-    }
-    simulationResult += `• 長期契約割引: 6ヶ月10%、12ヶ月20%OFF\n`;
-    simulationResult += `• まずは10営業日無料トライアルから！`;
+    simulationResult += `💡 ProspectFlow のポイント:\n`;
+    simulationResult += `• トライアル: 全機能10営業日無料体験\n`;
+    simulationResult += `• ベーシック: AI機能なし、手動運用向け\n`;
+    simulationResult += `• スタンダード以上: AI自動化機能フル活用\n`;
+    simulationResult += `• まずは無料トライアルから始めましょう！`;
     
     ui.alert('料金シミュレーション', simulationResult, ui.ButtonSet.OK);
     
@@ -928,54 +941,80 @@ function showPricingCalculator() {
 }
 
 /**
- * 料金計算ロジック
+ * ProspectFlow 料金計算ロジック
  */
 function calculatePricingSimulation(companiesPerDay, useAI) {
-  const apiCostPerCompany = useAI ? 2.5 : 0.1;
-  const monthlyApiCost = Math.ceil(companiesPerDay * apiCostPerCompany * 30);
+  // ProspectFlow 料金体系に基づく計算
+  let apiCostPerCompany = 0;
+  let monthlyApiCost = 0;
+  
+  if (useAI) {
+    // AI機能使用時のAPI料金（1社あたり約¥40）
+    apiCostPerCompany = 40;
+    monthlyApiCost = Math.ceil(companiesPerDay * apiCostPerCompany * 20); // 営業日ベース
+  }
   
   const plans = [
     {
-      name: 'ベーシック版',
+      name: 'トライアル',
+      icon: '🆓',
+      license: 0,
+      dailyLimit: 5,
+      users: 1,
+      apiCost: useAI ? 50 : 0, // 10営業日での概算
+      totalCost: 0,
+      period: '10営業日限定'
+    },
+    {
+      name: 'ベーシック',
       icon: '🥉',
-      license: 1980,
+      license: 500,
+      dailyLimit: 10,
+      users: 1,
+      apiCost: 0, // AI機能なしのため
+      totalCost: 0,
+      hasAI: false
+    },
+    {
+      name: 'スタンダード',
+      icon: '🥈',
+      license: 1500,
       dailyLimit: 50,
       users: 1,
-      apiCost: Math.min(monthlyApiCost, companiesPerDay <= 50 ? monthlyApiCost : 0),
-      totalCost: 0
+      apiCost: useAI && companiesPerDay <= 50 ? 2000 : 0, // 最大想定API料金
+      totalCost: 0,
+      hasAI: true
     },
     {
-      name: 'スタンダード版',
-      icon: '🥈',
-      license: 4980,
-      dailyLimit: 200,
-      users: 3,
-      apiCost: Math.min(monthlyApiCost, companiesPerDay <= 200 ? monthlyApiCost : 0),
-      totalCost: 0
-    },
-    {
-      name: 'プロフェッショナル版',
+      name: 'プロフェッショナル',
       icon: '🥇',
-      license: 12800,
-      dailyLimit: 500,
-      users: 10,
-      apiCost: Math.min(monthlyApiCost, companiesPerDay <= 500 ? monthlyApiCost : 0),
-      totalCost: 0
+      license: 5500,
+      dailyLimit: 100,
+      users: 2,
+      apiCost: useAI && companiesPerDay <= 100 ? 6000 : 0, // 最大想定API料金
+      totalCost: 0,
+      hasAI: true
     },
     {
-      name: 'エンタープライズ版',
+      name: 'エンタープライズ',
       icon: '💎',
-      license: 48000,
-      dailyLimit: 0, // 無制限
-      users: 999,
-      apiCost: monthlyApiCost,
-      totalCost: 0
+      license: 17500,
+      dailyLimit: 500,
+      users: 5,
+      apiCost: useAI && companiesPerDay <= 500 ? 30000 : 0, // 最大想定API料金
+      totalCost: 0,
+      hasAI: true
     }
   ];
   
   // 合計料金計算
   plans.forEach(plan => {
-    plan.totalCost = plan.license + plan.apiCost;
+    if (plan.name === 'ベーシック' && useAI) {
+      // ベーシックプランではAI機能が使用できない
+      plan.totalCost = 'AI機能非対応';
+    } else {
+      plan.totalCost = plan.license + plan.apiCost;
+    }
   });
   
   return {

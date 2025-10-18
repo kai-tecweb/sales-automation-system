@@ -16,9 +16,9 @@ function onOpen() {
     // 最小限のフォールバックメニュー
     try {
       SpreadsheetApp.getUi()
-        .createMenu('🆘 営業システム (エラー)')
-        .addItem('📋 状態確認', 'checkSystemStatus')
-        .addItem('� メニュー再読み込み', 'reloadMenu')
+        .createMenu('[営業システム] (エラー)')
+        .addItem('● 状態確認', 'checkSystemStatus')
+        .addItem('○ メニュー再読み込み', 'reloadMenu')
         .addToUi();
     } catch (fallbackError) {
       console.error('❌ Fallback menu failed:', fallbackError);
@@ -46,20 +46,20 @@ function createRoleBasedMenu() {
     const userRole = currentUser.role || 'Guest';
     const isLoggedIn = currentUser.isLoggedIn || false;
     
-    console.log(`� ユーザーロール: ${userRole}, ログイン状態: ${isLoggedIn}`);
+    console.log(`[INFO] ユーザーロール: ${userRole}, ログイン状態: ${isLoggedIn}`);
     
     // メインメニュー開始
-    const mainMenu = ui.createMenu(`� 営業自動化システム (${userRole})`);
+    const mainMenu = ui.createMenu(`[営業自動化システム] ${userRole}モード`);
     
     // 基本システム機能（全ユーザー共通）
-    mainMenu.addItem('� システム状態確認', 'checkSystemStatus');
+    mainMenu.addItem('● システム状態確認', 'checkSystemStatus');
     
     // ログイン/ログアウト機能
     if (isLoggedIn) {
-      mainMenu.addItem('� ユーザー状態', 'showCurrentUserStatus');
-      mainMenu.addItem('� ログアウト', 'logoutUser');
+      mainMenu.addItem('● ユーザー状態', 'showCurrentUserStatus');
+      mainMenu.addItem('× ログアウト', 'logoutUser');
     } else {
-      mainMenu.addItem('� ユーザーログイン', 'showUserLoginDialog');
+      mainMenu.addItem('▶ ユーザーログイン', 'showUserLoginDialog');
     }
     
     mainMenu.addSeparator();
@@ -84,7 +84,7 @@ function createRoleBasedMenu() {
     // システム起動通知
     SpreadsheetApp.getActiveSpreadsheet().toast(
       `営業自動化システム v2.0 - ${userRole}モード`, 
-      '🚀 メニューシステム起動完了', 
+      '[システム起動完了]', 
       5
     );
     
@@ -99,49 +99,49 @@ function createRoleBasedMenu() {
  */
 function addAdministratorMenu(mainMenu, ui) {
   // 管理者は全機能にアクセス可能
-  mainMenu.addItem('🔧 基本シート作成', 'initializeBasicSheets');
+  mainMenu.addItem('■ 基本シート作成', 'initializeBasicSheets');
   
   // ライセンス管理（管理者専用）
-  mainMenu.addSubMenu(ui.createMenu('🔐 ライセンス管理')
-    .addItem('📋 ライセンス状況', 'showLicenseStatus')
-    .addItem('👤 管理者認証', 'authenticateAdminFixed')
+  mainMenu.addSubMenu(ui.createMenu('[ライセンス管理]')
+    .addItem('● ライセンス状況', 'showLicenseStatus')
+    .addItem('▲ 管理者認証', 'authenticateAdminFixed')
     .addSeparator()
-    .addItem('💰 料金プラン確認', 'showPricingPlans')
-    .addItem('📊 料金シミュレーター', 'showPricingCalculator')
-    .addItem('⚙️ ライセンス設定', 'configureLicense')
+    .addItem('$ 料金プラン確認', 'showPricingPlans')
+    .addItem('+ 料金シミュレーター', 'showPricingCalculator')
+    .addItem('※ ライセンス設定', 'configureLicense')
     .addSeparator()
-    .addItem('📅 使用開始設定', 'setLicenseStartDate')
-    .addItem('🔄 期限延長', 'extendLicense')
-    .addItem('🔒 システムロック解除', 'unlockSystem'));
+    .addItem('◆ 使用開始設定', 'setLicenseStartDate')
+    .addItem('○ 期限延長', 'extendLicense')
+    .addItem('□ システムロック解除', 'unlockSystem'));
   
   // API設定（管理者専用）
-  mainMenu.addSubMenu(ui.createMenu('🔑 API設定')
-    .addItem('🔧 APIキー設定', 'setApiKeys')
-    .addItem('📋 設定状況確認', 'checkApiKeys')
-    .addItem('🗑️ APIキー削除', 'clearApiKeys'));
+  mainMenu.addSubMenu(ui.createMenu('[API設定]')
+    .addItem('■ APIキー設定', 'setApiKeys')
+    .addItem('● 設定状況確認', 'checkApiKeys')
+    .addItem('× APIキー削除', 'clearApiKeys'));
   
   // ユーザー管理（管理者専用）
-  mainMenu.addSubMenu(ui.createMenu('👥 ユーザー管理')
-    .addItem('👤 ユーザー管理シート初期化', 'initializeUserManagementSheet')
-    .addItem('� 新規ユーザー作成', 'showCreateUserDialog')
-    .addItem('📋 ユーザーリスト表示', 'showUserListDialog')
+  mainMenu.addSubMenu(ui.createMenu('[ユーザー管理]')
+    .addItem('▲ ユーザー管理シート初期化', 'initializeUserManagementSheet')
+    .addItem('+ 新規ユーザー作成', 'showCreateUserDialog')
+    .addItem('● ユーザーリスト表示', 'showUserListDialog')
     .addSeparator()
-    .addItem('🔄 ユーザー切り替え', 'switchUserMode')
-    .addItem('📊 権限確認', 'checkUserPermissions'));
+    .addItem('○ ユーザー切り替え', 'switchUserMode')
+    .addItem('※ 権限確認', 'checkUserPermissions'));
   
   // 営業自動化機能（全機能）
-  mainMenu.addSubMenu(ui.createMenu('🚀 営業自動化')
-    .addItem('🔤 キーワード生成', 'generateKeywords')
-    .addItem('🏢 企業検索', 'searchCompanies')
-    .addItem('💬 提案メッセージ生成', 'generateProposals')
+  mainMenu.addSubMenu(ui.createMenu('[営業自動化]')
+    .addItem('◆ キーワード生成', 'generateKeywords')
+    .addItem('■ 企業検索', 'searchCompanies')
+    .addItem('▶ 提案メッセージ生成', 'generateProposals')
     .addSeparator()
-    .addItem('⚡ 完全自動化実行', 'executeFullWorkflow'));
+    .addItem('★ 完全自動化実行', 'executeFullWorkflow'));
   
   // システム管理（管理者専用）
-  mainMenu.addSubMenu(ui.createMenu('⚙️ システム管理')
-    .addItem('🔄 メニュー更新', 'forceUpdateMenu')
-    .addItem('🏥 システム診断', 'performSystemDiagnostics')
-    .addItem('📊 システム情報', 'showSystemInfo'));
+  mainMenu.addSubMenu(ui.createMenu('[システム管理]')
+    .addItem('○ メニュー更新', 'forceUpdateMenu')
+    .addItem('+ システム診断', 'performSystemDiagnostics')
+    .addItem('● システム情報', 'showSystemInfo'));
 }
 
 /**
@@ -149,21 +149,21 @@ function addAdministratorMenu(mainMenu, ui) {
  */
 function addStandardUserMenu(mainMenu, ui) {
   // 営業自動化機能（基本機能のみ）
-  mainMenu.addSubMenu(ui.createMenu('🚀 営業自動化')
-    .addItem('🔤 キーワード生成', 'generateKeywordsWithPermissionCheck')
-    .addItem('🏢 企業検索', 'searchCompaniesWithPermissionCheck')
-    .addItem('💬 提案メッセージ生成', 'generateProposalsWithPermissionCheck')
+  mainMenu.addSubMenu(ui.createMenu('[営業自動化]')
+    .addItem('◆ キーワード生成', 'generateKeywordsWithPermissionCheck')
+    .addItem('■ 企業検索', 'searchCompaniesWithPermissionCheck')
+    .addItem('▶ 提案メッセージ生成', 'generateProposalsWithPermissionCheck')
     .addSeparator()
-    .addItem('⚡ 基本自動化実行', 'executeBasicWorkflow'));
+    .addItem('★ 基本自動化実行', 'executeBasicWorkflow'));
   
   // データ閲覧機能
-  mainMenu.addSubMenu(ui.createMenu('📊 データ閲覧')
-    .addItem('📋 生成キーワード表示', 'viewKeywordData')
-    .addItem('🏢 企業データ表示', 'viewCompanyData')
-    .addItem('💬 提案メッセージ表示', 'viewProposalData'));
+  mainMenu.addSubMenu(ui.createMenu('[データ閲覧]')
+    .addItem('● 生成キーワード表示', 'viewKeywordData')
+    .addItem('■ 企業データ表示', 'viewCompanyData')
+    .addItem('▶ 提案メッセージ表示', 'viewProposalData'));
   
   // ライセンス状況確認（読み取り専用）
-  mainMenu.addItem('📋 ライセンス状況確認', 'showLicenseStatusReadOnly');
+  mainMenu.addItem('● ライセンス状況確認', 'showLicenseStatusReadOnly');
 }
 
 /**
@@ -171,13 +171,13 @@ function addStandardUserMenu(mainMenu, ui) {
  */
 function addGuestUserMenu(mainMenu, ui) {
   // 閲覧機能のみ
-  mainMenu.addSubMenu(ui.createMenu('👁️ データ閲覧（読み取り専用）')
-    .addItem('📋 キーワードデータ表示', 'viewKeywordDataReadOnly')
-    .addItem('🏢 企業データ表示', 'viewCompanyDataReadOnly')
-    .addItem('💬 提案メッセージ表示', 'viewProposalDataReadOnly'));
+  mainMenu.addSubMenu(ui.createMenu('[データ閲覧] (読み取り専用)')
+    .addItem('○ キーワードデータ表示', 'viewKeywordDataReadOnly')
+    .addItem('□ 企業データ表示', 'viewCompanyDataReadOnly')
+    .addItem('△ 提案メッセージ表示', 'viewProposalDataReadOnly'));
   
   // システム情報確認（限定版）
-  mainMenu.addItem('📊 システム情報確認', 'showSystemInfoLimited');
+  mainMenu.addItem('※ システム情報確認', 'showSystemInfoLimited');
 }
 
 /**
@@ -187,7 +187,7 @@ function reloadMenu() {
   try {
     console.log('🔄 Reloading menu...');
     onOpen();
-    SpreadsheetApp.getActiveSpreadsheet().toast('メニュー再読み込み完了', '🔄 更新されました', 3);
+    SpreadsheetApp.getActiveSpreadsheet().toast('メニュー再読み込み完了', '[更新されました]', 3);
   } catch (error) {
     console.error('Menu reload error:', error);
     SpreadsheetApp.getUi().alert('❌ エラー', 'メニュー再読み込みでエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
@@ -436,7 +436,7 @@ function updateSheetVisibilityOnLogin(userRole) {
     
     SpreadsheetApp.getActiveSpreadsheet().toast(
       `シート表示を${userRole}モードに更新しました`, 
-      '🔄 表示更新完了', 
+      '[表示更新完了]', 
       3
     );
     

@@ -172,9 +172,10 @@ function authenticateUser(username, password) {
   try {
     console.log(`🔐 ユーザー認証開始: ${username}`);
     
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ユーザー管理');
+    let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ユーザー管理');
     if (!sheet) {
-      throw new Error('ユーザー管理シートが見つかりません');
+      console.log('ユーザー管理シートが存在しないため、自動初期化を実行...');
+      sheet = initializeUserManagementSheet();
     }
     
     const data = sheet.getDataRange().getValues();
@@ -616,5 +617,36 @@ function logoutUser() {
   } catch (error) {
     console.error('❌ ログアウトエラー:', error);
     SpreadsheetApp.getUi().alert('ログアウト処理中にエラーが発生しました');
+  }
+}
+
+/**
+ * シンプルプロンプトログイン（統一ログイン方法）
+ */
+function simpleLogin() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    
+    const usernameResponse = ui.prompt('🔐 ログイン 1/2', 'ユーザー名:', ui.ButtonSet.OK_CANCEL);
+    if (usernameResponse.getSelectedButton() !== ui.Button.OK) return;
+    const username = usernameResponse.getResponseText().trim();
+    if (!username) { ui.alert('❌ エラー', 'ユーザー名を入力してください', ui.ButtonSet.OK); return; }
+    
+    const passwordResponse = ui.prompt('🔐 ログイン 2/2', 'パスワード:', ui.ButtonSet.OK_CANCEL);
+    if (passwordResponse.getSelectedButton() !== ui.Button.OK) return;
+    const password = passwordResponse.getResponseText();
+    if (!password) { ui.alert('❌ エラー', 'パスワードを入力してください', ui.ButtonSet.OK); return; }
+    
+    const authResult = authenticateUser(username, password);
+    
+    if (authResult.success) {
+      ui.alert('✅ ログイン成功', `ようこそ、${authResult.username}さん！\n権限: ${authResult.role}\n\nページを再読み込みしてください。`, ui.ButtonSet.OK);
+    } else {
+      ui.alert('❌ ログイン失敗', authResult.message || 'ユーザー名またはパスワードが正しくありません', ui.ButtonSet.OK);
+    }
+    
+  } catch (error) {
+    console.error('❌ ログインエラー:', error);
+    SpreadsheetApp.getUi().alert('❌ エラー', `ログイン処理中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }

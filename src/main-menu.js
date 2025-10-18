@@ -59,7 +59,7 @@ function createRoleBasedMenu() {
       mainMenu.addItem('👤 ユーザー状態', 'showCurrentUserStatus');
       mainMenu.addItem('🚪 ログアウト', 'logoutUser');
     } else {
-      mainMenu.addItem('🔐 ユーザーログイン', 'showUserLoginDialog');
+      mainMenu.addItem('🔐 ログイン', 'simpleLogin');
     }
     
     mainMenu.addSeparator();
@@ -136,8 +136,8 @@ function addAdministratorMenu(mainMenu, ui) {
   // 営業自動化機能（全機能）
   mainMenu.addSubMenu(ui.createMenu('🚀 営業自動化')
     .addItem('🔤 キーワード生成', 'generateKeywords')
-    .addItem('🏢 企業検索', 'searchCompanies')
-    .addItem('💬 提案メッセージ生成', 'generateProposals')
+    .addItem('🏢 企業検索', 'executeCompanySearch')
+    .addItem('💬 提案メッセージ生成', 'generatePersonalizedProposals')
     .addSeparator()
     .addItem('⚡ 完全自動化実行', 'executeFullWorkflow'));
   
@@ -162,11 +162,11 @@ function addAdministratorMenu(mainMenu, ui) {
 function addStandardUserMenu(mainMenu, ui) {
   // 営業自動化機能（基本機能のみ）
   mainMenu.addSubMenu(ui.createMenu('🚀 営業自動化')
-    .addItem('🔤 キーワード生成', 'generateKeywordsWithPermissionCheck')
-    .addItem('🏢 企業検索', 'searchCompaniesWithPermissionCheck')
-    .addItem('💬 提案メッセージ生成', 'generateProposalsWithPermissionCheck')
+    .addItem('🔤 キーワード生成', 'generateKeywords')
+    .addItem('🏢 企業検索', 'executeCompanySearch')
+    .addItem('💬 提案メッセージ生成', 'generatePersonalizedProposals')
     .addSeparator()
-    .addItem('⚡ 基本自動化実行', 'executeBasicWorkflow'));
+    .addItem('⚡ 基本自動化実行', 'executeFullWorkflow'));
   
   // データ閲覧機能
   mainMenu.addSubMenu(ui.createMenu('📊 データ閲覧')
@@ -207,92 +207,8 @@ function reloadMenu() {
 }
 
 // =================================
-// 権限チェック付き機能実行関数
-// =================================
-
-/**
- * 権限チェック付きキーワード生成
- */
-function generateKeywordsWithPermissionCheck() {
-  try {
-    const permission = checkUserPermission('Standard');
-    if (!permission.hasPermission) {
-      SpreadsheetApp.getUi().alert(
-        '権限エラー', 
-        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。\nログインしてください。', 
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-    
-    // キーワード生成機能の実行
-    if (typeof executeKeywordGeneration === 'function') {
-      executeKeywordGeneration();
-    } else {
-      SpreadsheetApp.getUi().alert('機能エラー', 'キーワード生成機能が見つかりません', SpreadsheetApp.getUi().ButtonSet.OK);
-    }
-    
-  } catch (error) {
-    console.error('❌ キーワード生成（権限チェック付き）エラー:', error);
-    SpreadsheetApp.getUi().alert('エラー', 'キーワード生成中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
-  }
-}
-
-/**
- * 権限チェック付き企業検索
- */
-function searchCompaniesWithPermissionCheck() {
-  try {
-    const permission = checkUserPermission('Standard');
-    if (!permission.hasPermission) {
-      SpreadsheetApp.getUi().alert(
-        '権限エラー', 
-        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。\nログインしてください。', 
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-    
-    // 企業検索機能の実行
-    if (typeof executeCompanySearch === 'function') {
-      executeCompanySearch();
-    } else {
-      SpreadsheetApp.getUi().alert('機能エラー', '企業検索機能が見つかりません', SpreadsheetApp.getUi().ButtonSet.OK);
-    }
-    
-  } catch (error) {
-    console.error('❌ 企業検索（権限チェック付き）エラー:', error);
-    SpreadsheetApp.getUi().alert('エラー', '企業検索中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
-  }
-}
-
-/**
- * 権限チェック付き提案生成
- */
-function generateProposalsWithPermissionCheck() {
-  try {
-    const permission = checkUserPermission('Standard');
-    if (!permission.hasPermission) {
-      SpreadsheetApp.getUi().alert(
-        '権限エラー', 
-        'この機能を使用するにはスタンダードユーザー以上の権限が必要です。\nログインしてください。', 
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-    
-    // 提案生成機能の実行
-    if (typeof executeProposalGeneration === 'function') {
-      executeProposalGeneration();
-    } else {
-      SpreadsheetApp.getUi().alert('機能エラー', '提案生成機能が見つかりません', SpreadsheetApp.getUi().ButtonSet.OK);
-    }
-    
-  } catch (error) {
-    console.error('❌ 提案生成（権限チェック付き）エラー:', error);
-    SpreadsheetApp.getUi().alert('エラー', '提案生成中にエラーが発生しました', SpreadsheetApp.getUi().ButtonSet.OK);
-  }
-}
+// 機能実行関数（シンプル版）
+// ================================
 
 /**
  * 基本ワークフロー実行（スタンダードユーザー用）

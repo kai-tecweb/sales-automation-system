@@ -290,11 +290,30 @@ function getCurrentUser() {
       };
     }
     
+    // プラン管理統合ポイント - Phase 0
+    let planPermissions = null;
+    try {
+      // plan-manager.jsが利用可能な場合はプラン権限も含める
+      if (typeof getPlanDetails === 'function') {
+        const planDetails = getPlanDetails();
+        planPermissions = {
+          planType: planDetails.planType,
+          planDisplayName: planDetails.displayName,
+          planLimits: planDetails.limits,
+          isTemporary: planDetails.isTemporary
+        };
+      }
+    } catch (error) {
+      console.log('プラン管理システム未初期化 - ユーザー権限のみ提供');
+    }
+
     return {
       isLoggedIn: true,
       userId: userId,
       role: role,
-      loginTime: loginTime ? new Date(parseInt(loginTime)) : null
+      loginTime: loginTime ? new Date(parseInt(loginTime)) : null,
+      // Phase 0: プラン管理統合
+      planPermissions: planPermissions
     };
     
   } catch (error) {
@@ -302,6 +321,71 @@ function getCurrentUser() {
     return {
       isLoggedIn: false,
       role: USER_ROLES.GUEST
+    };
+  }
+}
+
+/**
+ * 統合された有効権限を取得（ユーザー権限 + プラン権限）
+ * Phase 0: 統合ポイント
+ */
+function getEffectivePermissions() {
+  try {
+    const currentUser = getCurrentUser();
+    
+    // ベース権限（ユーザーロールによる）
+    const basePermissions = {
+      canAccessAdminFeatures: currentUser.role === USER_ROLES.ADMINISTRATOR,
+      canManageUsers: currentUser.role === USER_ROLES.ADMINISTRATOR,
+      canViewSystemStats: currentUser.role !== USER_ROLES.GUEST,
+      canUseBasicFeatures: true
+    };
+    
+    // プラン制限を統合
+    if (currentUser.planPermissions) {
+      const planLimits = currentUser.planPermissions.planLimits;
+      
+      return {
+        ...basePermissions,
+        // プラン制限を反映
+        canGenerateKeywords: planLimits.keywordGeneration,
+        canUseAiProposals: planLimits.aiProposals,
+        maxCompaniesPerDay: planLimits.maxCompaniesPerDay,
+        requiresApiKey: planLimits.requiresApiKey,
+        // プラン情報
+        planType: currentUser.planPermissions.planType,
+        planDisplayName: currentUser.planPermissions.planDisplayName,
+        isTemporaryPlan: currentUser.planPermissions.isTemporary
+      };
+    }
+    
+    // プラン管理が未初期化の場合は基本権限のみ
+    return {
+      ...basePermissions,
+      // 制限的なデフォルト
+      canGenerateKeywords: false,
+      canUseAiProposals: false,
+      maxCompaniesPerDay: 10,
+      requiresApiKey: false,
+      planType: 'BASIC',
+      planDisplayName: '🥉 ベーシック',
+      isTemporaryPlan: false
+    };
+    
+  } catch (error) {
+    console.error('❌ 有効権限取得エラー:', error);
+    return {
+      canAccessAdminFeatures: false,
+      canManageUsers: false,
+      canViewSystemStats: false,
+      canUseBasicFeatures: true,
+      canGenerateKeywords: false,
+      canUseAiProposals: false,
+      maxCompaniesPerDay: 10,
+      requiresApiKey: false,
+      planType: 'BASIC',
+      planDisplayName: '🥉 ベーシック',
+      isTemporaryPlan: false
     };
   }
 }

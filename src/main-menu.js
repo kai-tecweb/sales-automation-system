@@ -29,17 +29,31 @@ function createSpecCompliantMenu() {
     
     const ui = SpreadsheetApp.getUi();
     
-    // ユーザー権限確認（仕様書準拠）
+    // 統合権限確認（ユーザー権限 + プラン権限）- Phase 0統合ポイント
     let isAdmin = false;
+    let effectivePermissions = null;
+    
     try {
-      const currentUser = getCurrentUser();
-      isAdmin = currentUser.role === 'Administrator';
+      // 統合権限取得を試行
+      if (typeof getEffectivePermissions === 'function') {
+        effectivePermissions = getEffectivePermissions();
+        isAdmin = effectivePermissions.canAccessAdminFeatures;
+      } else {
+        // フォールバック：既存のユーザー管理のみ
+        const currentUser = getCurrentUser();
+        isAdmin = currentUser.role === 'Administrator';
+      }
     } catch (error) {
-      console.log('ユーザー管理未初期化 - 一般ユーザーとして処理');
+      console.log('権限管理未初期化 - 一般ユーザーとして処理');
     }
     
-    // メインメニュー作成（仕様書v2.0タイトル）
-    const mainMenu = ui.createMenu('🚀 営業システム');
+    // Phase 0: プラン統合メニュータイトル
+    let menuTitle = '🚀 営業システム';
+    if (effectivePermissions && effectivePermissions.planDisplayName) {
+      menuTitle = `🚀 営業システム (${effectivePermissions.planDisplayName})`;
+    }
+    
+    const mainMenu = ui.createMenu(menuTitle);
     
     // 📊 システム管理（仕様書準拠）
     mainMenu.addSubMenu(ui.createMenu('📊 システム管理')
@@ -416,4 +430,86 @@ function showSystemEnvironment() {
     'Google Apps Script環境\n\nV8ランタイム使用', 
     SpreadsheetApp.getUi().ButtonSet.OK
   );
+}
+
+/**
+ * システム設定（プラン管理統合）- Phase 0
+ */
+function systemConfiguration() {
+  try {
+    console.log('🔧 システム設定表示開始');
+    
+    // 統合情報を取得
+    let systemInfo = '🚀 営業自動化システム設定\n\n';
+    
+    // ライセンス情報
+    try {
+      if (typeof getLicenseInfo === 'function') {
+        const licenseInfo = getLicenseInfo();
+        systemInfo += '📋 ライセンス情報:\n';
+        systemInfo += `・管理者モード: ${licenseInfo.adminMode ? '✅ 有効' : '🔴 無効'}\n`;
+        systemInfo += `・システム状態: ${licenseInfo.systemLocked ? '🔒 ロック中' : '✅ 利用可能'}\n`;
+        
+        if (licenseInfo.remainingDays !== null) {
+          systemInfo += `・残り日数: ${licenseInfo.remainingDays}営業日\n`;
+        }
+        systemInfo += '\n';
+      }
+    } catch (error) {
+      systemInfo += '📋 ライセンス情報: 取得エラー\n\n';
+    }
+    
+    // プラン情報
+    try {
+      if (typeof getPlanDetails === 'function') {
+        const planDetails = getPlanDetails();
+        systemInfo += '💰 プラン情報:\n';
+        systemInfo += `・現在のプラン: ${planDetails.displayName}\n`;
+        systemInfo += `・月額料金: ¥${planDetails.limits.monthlyPrice.toLocaleString()}\n`;
+        systemInfo += `・キーワード生成: ${planDetails.limits.keywordGeneration ? '✅' : '❌'}\n`;
+        systemInfo += `・企業検索上限: ${planDetails.limits.maxCompaniesPerDay}社/日\n`;
+        systemInfo += `・AI提案生成: ${planDetails.limits.aiProposals ? '✅' : '❌'}\n`;
+        
+        if (planDetails.isTemporary) {
+          systemInfo += `🔄 一時切り替えモード中\n`;
+        }
+        systemInfo += '\n';
+      } else {
+        systemInfo += '💰 プラン情報: プラン管理システム未初期化\n\n';
+      }
+    } catch (error) {
+      systemInfo += '💰 プラン情報: 取得エラー\n\n';
+    }
+    
+    // ユーザー情報
+    try {
+      if (typeof getCurrentUser === 'function') {
+        const currentUser = getCurrentUser();
+        systemInfo += '👤 ユーザー情報:\n';
+        systemInfo += `・ログイン状態: ${currentUser.isLoggedIn ? '✅ ログイン中' : '🔴 未ログイン'}\n`;
+        systemInfo += `・ユーザーロール: ${currentUser.role || 'Guest'}\n`;
+        systemInfo += '\n';
+      }
+    } catch (error) {
+      systemInfo += '👤 ユーザー情報: ユーザー管理システム未初期化\n\n';
+    }
+    
+    systemInfo += '🔧 管理機能:\n';
+    systemInfo += '・詳細な設定は管理者専用メニューをご利用ください\n';
+    systemInfo += '・プラン変更は管理者認証後に可能です';
+    
+    SpreadsheetApp.getUi().alert(
+      'システム設定', 
+      systemInfo, 
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ システム設定表示エラー:', error);
+    SpreadsheetApp.getUi().alert(
+      'エラー', 
+      'システム設定の表示でエラーが発生しました。', 
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  }
 }

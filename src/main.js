@@ -785,6 +785,9 @@ function createControlPanel(ss) {
     ['検索企業数上限', 20],
     ['APIキー設定', '確認中...'],
     ['', ''],
+    // Phase 0: プラン管理項目追加
+    ['現在のプラン', '取得中...'],
+    ['プラン切り替え', '管理者専用'],
     ['', ''],
     ['実行状況表示', '']
   ];
@@ -810,6 +813,9 @@ function createControlPanel(ss) {
   
   // API設定状況を更新
   updateControlPanelApiStatus(sheet);
+  
+  // Phase 0: プラン情報を更新
+  updateControlPanelPlanStatus(sheet);
 }
 
 /**
@@ -866,6 +872,47 @@ function updateControlPanelApiStatus(sheet) {
   } catch (error) {
     console.error('制御パネルAPI設定状況更新エラー:', error);
     sheet.getRange('B12').setValue('❌ エラー');
+  }
+}
+
+/**
+ * 制御パネルのプラン設定状況を更新 - Phase 0統合
+ */
+function updateControlPanelPlanStatus(sheet) {
+  try {
+    // プラン情報を取得
+    let planStatusText = '❌ 未初期化';
+    let planSwitchText = '管理者専用';
+    
+    if (typeof getPlanDetails === 'function') {
+      const planDetails = getPlanDetails();
+      planStatusText = planDetails.displayName;
+      
+      if (planDetails.isTemporary) {
+        planStatusText += ' (一時切り替え中)';
+      }
+      
+      // 管理者権限チェック
+      try {
+        if (typeof getEffectivePermissions === 'function') {
+          const permissions = getEffectivePermissions();
+          if (permissions.canAccessAdminFeatures) {
+            planSwitchText = 'クリックで切り替え';
+          }
+        }
+      } catch (error) {
+        console.log('権限確認エラー:', error);
+      }
+    }
+    
+    // プラン情報行を更新（B13, B14セル）
+    sheet.getRange('B13').setValue(planStatusText);
+    sheet.getRange('B14').setValue(planSwitchText);
+    
+  } catch (error) {
+    console.error('制御パネルプラン設定状況更新エラー:', error);
+    sheet.getRange('B13').setValue('❌ エラー');
+    sheet.getRange('B14').setValue('❌ エラー');
   }
 }
 

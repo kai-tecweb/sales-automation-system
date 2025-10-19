@@ -113,13 +113,31 @@ function getLicenseInfo() {
     systemLocked = isExpired && !adminMode;
   }
   
+  // プラン管理統合ポイント - Phase 0
+  let planInfo = null;
+  try {
+    // plan-manager.jsが利用可能な場合はプラン情報も含める
+    if (typeof getUserPlan === 'function') {
+      planInfo = {
+        currentPlan: getUserPlan(),
+        planDisplayName: getPlanDisplayName(),
+        planLimits: getPlanLimits(),
+        isInSwitchMode: isInSwitchMode()
+      };
+    }
+  } catch (error) {
+    console.log('プラン管理システム未初期化 - ライセンス情報のみ提供');
+  }
+
   return {
     adminMode: adminMode,
     startDate: startDate,
     expiryDate: expiryDate,
     isExpired: isExpired,
     remainingDays: remainingDays,
-    systemLocked: systemLocked
+    systemLocked: systemLocked,
+    // Phase 0: プラン管理統合
+    planInfo: planInfo
   };
 }
 
